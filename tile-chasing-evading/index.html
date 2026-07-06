@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tile Chasing & Evading</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #ccc;
+    }
+    #gameCanvas {
+      border: 2px solid #4ecdc4;
+      border-radius: 4px;
+      image-rendering: pixelated;
+    }
+    #controls {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 13px;
+      color: #555;
+    }
+    #controls strong { color: #4ecdc4; }
+    #backBtn {
+      margin-top: 10px;
+      padding: 8px 20px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: #888;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #backBtn:hover {
+      border-color: #4ecdc4;
+      color: #4ecdc4;
+      background: rgba(78,205,196,0.08);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="controls">
+    <strong>1</strong>: Respawn &nbsp;|&nbsp;
+    <strong>M/Tab</strong>: Switch Mode &nbsp;|&nbsp;
+    <strong>H</strong>: Toggle Heatmap &nbsp;|&nbsp;
+    <strong>R</strong>: Reset Scores &nbsp;|&nbsp;
+    <strong>ESC</strong>: Back to Menu
+  </div>
+  <button id="backBtn" onclick="window.location.href='/'">← Back to Main Menu</button>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
