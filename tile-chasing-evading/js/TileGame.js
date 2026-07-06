@@ -101,7 +101,7 @@ export class TileGame {
     // ── ESC → back to main menu ──
     this.escapeCooldown = Math.max(0, this.escapeCooldown - dt);
     if (this.input.isKeyDown('Escape') && this.escapeCooldown <= 0) {
-      window.location.href = '/';
+      window.location.href = '../';
       return;
     }
 

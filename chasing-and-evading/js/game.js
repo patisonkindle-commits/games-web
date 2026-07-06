@@ -177,7 +177,7 @@ export class Game {
 
     // ESC on menu → back to main landing page
     if (this.input.isKeyDown('Escape')) {
-      window.location.href = '/';
+      window.location.href = '../';
       return;
     }
   }
@@ -208,7 +208,7 @@ export class Game {
     // Escape → back to main menu
     this.escapeCooldown = Math.max(0, this.escapeCooldown - dt);
     if (this.input.isKeyDown('Escape') && this.escapeCooldown <= 0) {
-      window.location.href = '/';
+      window.location.href = '../';
       return;
     }
 
@@ -217,7 +217,7 @@ export class Game {
       const m = this.input.getMousePosition();
       const b = this._backBtnRect;
       if (m.x >= b.x && m.x <= b.x + b.w && m.y >= b.y && m.y <= b.y + b.h) {
-        window.location.href = '/';
+        window.location.href = '../';
         return;
       }
     }

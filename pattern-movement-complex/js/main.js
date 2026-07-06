@@ -254,7 +254,7 @@ function init() {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    window.location.href = '/';
+    window.location.href = '../';
     return;
   }
   if (e.key === '1' && !oldKeys['1']) {
