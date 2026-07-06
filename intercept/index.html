@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Line of Sight Intercept</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #16213e;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #ccc;
+    }
+    #gameCanvas {
+      border: 2px solid #ffd93d;
+      border-radius: 4px;
+      max-width: 100%;
+      max-height: 80vh;
+    }
+    #controls {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 13px;
+      color: #555;
+    }
+    #controls strong { color: #ffd93d; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="controls">
+    <strong>←→</strong>: Rotate Arrow &nbsp;|&nbsp;
+    <strong>↑↓</strong>: Speed &nbsp;|&nbsp;
+    <strong>1</strong>: Respawn Mouse &nbsp;|&nbsp;
+    <strong>M</strong>: Intercept/Chase &nbsp;|&nbsp;
+    <strong>ESC</strong>: Back
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

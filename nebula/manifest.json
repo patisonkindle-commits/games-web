@@ -1,0 +1,23 @@
+{
+  "name": "Project Nebula",
+  "short_name": "Nebula",
+  "start_url": "/nebula/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0a0a1a",
+  "theme_color": "#00d4ff",
+  "description": "A roguelite bullet-heaven mobile space shooter",
+  "scope": "/nebula/",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%230a0a1a' rx='24'/%3E%3Cpath d='M96 32 L120 96 L96 80 L72 96 Z' fill='%2300d4ff'/%3E%3Cpath d='M96 48 L136 128 L96 104 L56 128 Z' fill='%2300a8cc' opacity='0.6'/%3E%3Cpath d='M96 72 L112 160 L96 136 L80 160 Z' fill='%23007a99' opacity='0.4'/%3E%3Ccircle cx='96' cy='60' r='4' fill='%23ffffff'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230a0a1a' rx='64'/%3E%3Cpath d='M256 48 L320 256 L256 208 L192 256 Z' fill='%2300d4ff'/%3E%3Cpath d='M256 96 L368 352 L256 272 L144 352 Z' fill='%2300a8cc' opacity='0.6'/%3E%3Cpath d='M256 176 L304 448 L256 368 L208 448 Z' fill='%23007a99' opacity='0.4'/%3E%3Ccircle cx='256' cy='140' r='12' fill='%23ffffff'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sky Stacker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <div id="score-display">0</div>
+            <div id="start-screen">
+                <h1>Sky Stacker</h1>
+                <p>Tap to start</p>
+            </div>
+            <div id="gameover-screen" style="display: none;">
+                <h2>Game Over</h2>
+                <p>Score: <span id="final-score">0</span></p>
+                <button id="restart-btn">Play Again</button>
+                <button id="ad-btn">Watch Ad to Continue</button>
+            </div>
+        </div>
+        <!-- AdSense Placeholder -->
+        <div id="ad-banner" style="height: 60px; background: #eee; text-align: center; line-height: 60px; font-size: 12px; color: #999;">AdSense Banner 320x50</div>
+    </div>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
