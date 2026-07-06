@@ -20,9 +20,11 @@
       --accent-chase: #ff6b6b;
       --accent-tile: #4ecdc4;
       --accent-intercept: #ffd93d;
+      --accent-algo: #a78bfa;
       --glow-chase: rgba(255,107,107,0.15);
       --glow-tile: rgba(78,205,196,0.15);
       --glow-intercept: rgba(255,217,61,0.12);
+      --glow-algo: rgba(167,139,250,0.15);
     }
 
     body {
@@ -332,7 +334,15 @@
     a.card.chase .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
     a.card.tile .card-meta .status .dot   { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
     a.card.intercept .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+    a.card.algo .card-meta .status .dot   { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
     .card-meta .status .live { color: #22c55e; }
+
+    /* ── Algorithm Card ── */
+    a.card.algo .card-body h2 { color: var(--accent-algo); }
+    a.card.algo::before { background: linear-gradient(90deg, var(--accent-algo), #c4b5fd); }
+    a.card.algo:hover { box-shadow: 0 12px 48px var(--glow-algo); border-color: rgba(167,139,250,0.2); }
+    a.card.algo .card-thumb .deco { width: 90px; height: 90px; background: var(--accent-algo); top: 10px; right: 15px; }
+    a.card.algo .card-thumb .icon-bg { filter: drop-shadow(0 0 20px rgba(167,139,250,0.15)); }
 
     /* ── Footer ── */
     footer {
@@ -381,9 +391,9 @@
 
     <header>
       <div class="badge">🎮 Game Collection</div>
-      <h1>AI Game Demos</h1>
-      <p>HTML5 Canvas ports of MonoGame AI demonstrations</p>
-      <div class="count">3 games online</div>
+      <h1>Game Demos &amp; Visualizations</h1>
+      <p>HTML5 Canvas ports of MonoGame AI demonstrations + algorithm visualizations</p>
+      <div class="count">4 projects online</div>
     </header>
 
     <div class="games">
@@ -440,6 +450,26 @@
           <div class="card-meta">
             <span>🔄 2 modes</span>
             <span>📐 Prediction</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Bresenham Line Algorithm -->
+      <a class="card algo" href="bresenham-line/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">📐</span>
+        </div>
+        <div class="card-body">
+          <h2>Bresenham's Line <span class="tag">Algo</span></h2>
+          <p>Interactive step-by-step visualization of the classic line rasterization algorithm. Click points on a 10×10 grid, watch each pixel decision as it walks the line.</p>
+          <div class="card-meta">
+            <span>👆 Click-to-plot</span>
+            <span>⏭️ Step mode</span>
             <div class="status">
               <span class="dot"></span>
               <span class="live">Live</span>
