@@ -45,10 +45,39 @@
       color: #4ecdc4;
       background: rgba(78,205,196,0.08);
     }
+    #controls-bar {
+      margin-bottom: 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    #controls-bar button {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: #888;
+      cursor: pointer;
+      padding: 6px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    #controls-bar button:hover {
+      border-color: #4ecdc4;
+      color: #4ecdc4;
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <div id="controls-bar">
+    <button id="btnPlay">▶ Play</button>
+    <button id="btnStep">⏭ Step</button>
+    <button id="btnReset">⏮ Reset</button>
+    <span id="modeLabel" style="color:#4ecdc4;">Mode: Auto</span>
+  </div>
   <div id="controls">
     <strong>← →</strong>: Rotate Arrow &nbsp;|&nbsp;
     <strong>↑ ↓</strong>: Change Speed &nbsp;|&nbsp;
@@ -100,12 +129,47 @@
     // Input
     const keys = {};
 
+    // Step mode
+    let autoPlay = true;
+    let stepRequested = false;
+
     // ─── Initialize Pattern Target ───────────────────────────────
     function initPattern() {
       angleTarget = pattern[currentIndex][2] + arrowRotation;
       // calTarget = cos/sin of the rotation * distance + arrowPos
       // (Stored as full target but we just track angle+distance in continuous mode)
       cumulativeDist = { x: 0, y: 0 };
+    }
+
+    function resetPattern() {
+      arrowPos = { x: 50, y: 300 };
+      arrowRotation = 0;
+      currentIndex = 0;
+      cumulativeDist = { x: 0, y: 0 };
+      stop = false;
+      angleTarget = pattern[0][2];
+      initPattern();
+    }
+
+    function stepOnce() {
+      // Rotate arrow toward target angle
+      const angleOffset = 3;
+      if (angleTarget > arrowRotation) {
+        if (angleOffset > Math.abs(angleTarget - arrowRotation))
+          arrowRotation += Math.abs(angleTarget - arrowRotation);
+        else
+          arrowRotation += angleOffset;
+        arrowRotation = arrowRotation % 360;
+      } else if (angleTarget < arrowRotation) {
+        if (angleOffset > Math.abs(angleTarget - arrowRotation))
+          arrowRotation -= Math.abs(angleTarget - arrowRotation);
+        else
+          arrowRotation -= angleOffset;
+        arrowRotation = arrowRotation % 360;
+      }
+
+      // Pattern movement
+      if (!stop) doPatternMovementSimulatedEnvir();
     }
 
     // ─── Sprites (procedural) ────────────────────────────────────
@@ -192,24 +256,33 @@
 
     // ─── Update ──────────────────────────────────────────────────
     function update() {
-      // Rotate arrow toward target angle
-      const angleOffset = 3;
-      if (angleTarget > arrowRotation) {
-        if (angleOffset > Math.abs(angleTarget - arrowRotation))
-          arrowRotation += Math.abs(angleTarget - arrowRotation);
-        else
-          arrowRotation += angleOffset;
-        arrowRotation = arrowRotation % 360;
-      } else if (angleTarget < arrowRotation) {
-        if (angleOffset > Math.abs(angleTarget - arrowRotation))
-          arrowRotation -= Math.abs(angleTarget - arrowRotation);
-        else
-          arrowRotation -= angleOffset;
-        arrowRotation = arrowRotation % 360;
+      // Pattern rotation + movement (auto-play mode)
+      if (autoPlay) {
+        // Rotate arrow toward target angle
+        const angleOffset = 3;
+        if (angleTarget > arrowRotation) {
+          if (angleOffset > Math.abs(angleTarget - arrowRotation))
+            arrowRotation += Math.abs(angleTarget - arrowRotation);
+          else
+            arrowRotation += angleOffset;
+          arrowRotation = arrowRotation % 360;
+        } else if (angleTarget < arrowRotation) {
+          if (angleOffset > Math.abs(angleTarget - arrowRotation))
+            arrowRotation -= Math.abs(angleTarget - arrowRotation);
+          else
+            arrowRotation -= angleOffset;
+          arrowRotation = arrowRotation % 360;
+        }
+
+        // Pattern movement
+        if (!stop) doPatternMovementSimulatedEnvir();
       }
 
-      // Pattern movement
-      if (!stop) doPatternMovementSimulatedEnvir();
+      // Step mode: one frame on request
+      if (stepRequested) {
+        stepOnce();
+        stepRequested = false;
+      }
 
       // Out of bounds check (fixing original bug: Y compared to Width → use Height)
       if (mousePos.x < 0 || mousePos.x > CANVAS_W)
@@ -250,6 +323,74 @@
       }
     }
 
+    // ─── Instruction Queue HUD ─────────────────────────────────
+    function drawInstructionQueue() {
+      const px = 730, py = 90, pw = 270, ph = 330;
+
+      // Semi-transparent dark background panel
+      ctx.save();
+      ctx.fillStyle = 'rgba(10,10,30,0.8)';
+      ctx.strokeStyle = 'rgba(78,205,196,0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(px, py, pw, ph, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      // Title
+      ctx.fillStyle = '#4ecdc4';
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.fillText('🧠 AI Brain', px + 14, py + 24);
+
+      // Separator
+      ctx.strokeStyle = 'rgba(78,205,196,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px + 14, py + 34);
+      ctx.lineTo(px + pw - 14, py + 34);
+      ctx.stroke();
+
+      // Pattern entries
+      for (let i = 0; i < kMaxPattern; i++) {
+        const sy = py + 50 + i * 32;
+        const seg = pattern[i];
+        let status, color;
+        if (i < currentIndex) {
+          status = '✅';
+          color = '#4caf50';
+        } else if (i === currentIndex) {
+          status = '▶';
+          color = '#4ecdc4';
+        } else {
+          status = '⏳';
+          color = 'rgba(255,255,255,0.25)';
+        }
+
+        ctx.fillStyle = color;
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.fillText(status, px + 14, sy);
+
+        ctx.font = '13px "Courier New", monospace';
+        const label = 'Seg ' + (i + 1) + ': ' + seg[1] + 'px @' + seg[2] + '°';
+        ctx.fillText(label, px + 40, sy);
+      }
+
+      // Bottom info
+      ctx.strokeStyle = 'rgba(78,205,196,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px + 14, py + 230);
+      ctx.lineTo(px + pw - 14, py + 230);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillText('Vec: angle ' + Math.round(arrowRotation) + '°', px + 14, py + 254);
+      ctx.fillText('Seg: ' + currentIndex + '/' + kMaxPattern + ' | Speed: ' + arrowSpeed.toFixed(1), px + 14, py + 274);
+
+      ctx.restore();
+    }
+
     // ─── Draw ────────────────────────────────────────────────────
     function draw() {
       ctx.fillStyle = '#4682B4';
@@ -274,6 +415,9 @@
       ctx.lineTo(arrowPos.x + Math.cos(rad) * 60, arrowPos.y + Math.sin(rad) * 60);
       ctx.stroke();
 
+      // Instruction Queue HUD
+      drawInstructionQueue();
+
       // Draw sprites
       drawMouse(mousePos.x, mousePos.y);
       drawArrow(arrowPos.x, arrowPos.y, arrowRotation);
@@ -292,6 +436,33 @@
       }
       ctx.restore();
     }
+
+    // ─── Button Controls ─────────────────────────────────────────
+    document.getElementById('btnPlay').addEventListener('click', () => {
+      autoPlay = !autoPlay;
+      const btn = document.getElementById('btnPlay');
+      const label = document.getElementById('modeLabel');
+      if (autoPlay) {
+        btn.textContent = '▶ Play';
+        label.textContent = 'Mode: Auto';
+        label.style.color = '#4ecdc4';
+      } else {
+        btn.textContent = '⏸ Pause';
+        label.textContent = 'Mode: Step';
+        label.style.color = '#ffd93d';
+      }
+    });
+
+    document.getElementById('btnStep').addEventListener('click', () => {
+      if (!autoPlay) {
+        stepRequested = true;
+      }
+    });
+
+    document.getElementById('btnReset').addEventListener('click', () => {
+      resetPattern();
+      // If we were in step mode and pattern was stopped, reset clears stop
+    });
 
     // ─── Input ───────────────────────────────────────────────────
     document.addEventListener('keydown', (e) => {

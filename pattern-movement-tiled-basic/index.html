@@ -45,9 +45,40 @@
       color: #ffd93d;
       background: rgba(255,217,61,0.08);
     }
+    #controls-bar {
+      margin-bottom: 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    #controls-bar button {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: #888;
+      cursor: pointer;
+      padding: 6px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    #controls-bar button:hover {
+      border-color: #ffd93d;
+      color: #ffd93d;
+      background: rgba(255,217,61,0.08);
+    }
+    #modeLabel { color: #ffd93d; }
   </style>
 </head>
 <body>
+  <div id="controls-bar">
+    <button id="btnPlay">▶ Play</button>
+    <button id="btnStep">⏭ Step</button>
+    <button id="btnReset">⏮ Reset</button>
+    <span id="modeLabel">Mode: Auto</span>
+  </div>
   <canvas id="gameCanvas"></canvas>
   <div id="controls">
     <strong>1</strong>: Respawn Mouse &nbsp;|&nbsp;
@@ -79,6 +110,10 @@
     let stop = false;
     let frameCount = 0;
     let oldKeys = {};
+
+    // ─── Step Mode State ─────────────────────────────────────────
+    let autoPlay = true;
+    let stepRequested = false;
 
     // ─── Sprites ─────────────────────────────────────────────────
     function drawCat(px, py) {
@@ -139,11 +174,19 @@
       ctx.restore();
     }
 
+    // ─── Instruction Descriptions ────────────────────────────────
+    function getInstructionDesc(index) {
+      const names = [
+        "Seg 0: (3,10)→(3,18)",
+        "Seg 1: (3,18)→(12,18)",
+        "Seg 2: (12,18)→(12,10)",
+        "Seg 3: (12,10)→(3,10)"
+      ];
+      return names[index] || "Seg " + index;
+    }
+
     // ─── Path Logic (Basic Tiled — absolute coords) ─────────────
-    // Original: BuildPathSegment just stores start col/row at each index
     function buildPathSegment(startRow, startCol, endRow, endCol, index) {
-      // Original code: pathCol[index] = startCol; pathRow[index] = startRow;
-      // (only stores the START of each segment as absolute position)
       pathCol[index] = startCol;
       pathRow[index] = startRow;
     }
@@ -151,12 +194,10 @@
     function doPatternMovementTiled() {
       let endCol, endRow;
 
-      // At the last step, wrap back to the first path point
       if (currentStep === pathCol.length - 1) {
         endCol = pathCol[0];
         endRow = pathRow[0];
       } else {
-        // Direct absolute coordinate from the next segment's start
         endCol = pathCol[currentStep + 1];
         endRow = pathRow[currentStep + 1];
       }
@@ -174,7 +215,6 @@
       deltaRow = Math.abs(deltaRow);
       deltaCol = Math.abs(deltaCol);
 
-      // Bresenham step
       if (deltaCol > deltaRow) {
         fraction = deltaRow * 2 - deltaCol;
         if (fraction >= 0 && nextCol !== endCol) {
@@ -209,16 +249,25 @@
       pathRow = new Array(kMaxPathLength).fill(-1);
       pathCol = new Array(kMaxPathLength).fill(-1);
 
-      // Rectangle path (same as original tiled_Environments)
-      buildPathSegment(10, 3, 18, 3, 0);   // seg 0: from (3,10) to (18,10)
-      buildPathSegment(18, 3, 18, 12, 1);  // seg 1: from (3,18) to (12,18)
-      buildPathSegment(18, 12, 10, 12, 2); // seg 2: from (12,18) to (12,10)
-      buildPathSegment(10, 12, 10, 3, 3);  // seg 3: from (12,10) to (3,10)
+      buildPathSegment(10, 3, 18, 3, 0);
+      buildPathSegment(18, 3, 18, 12, 1);
+      buildPathSegment(18, 12, 10, 12, 2);
+      buildPathSegment(10, 12, 10, 3, 3);
 
       catPos.x = pathCol[0];
       catPos.y = pathRow[0];
       currentStep = 0;
       stop = false;
+    }
+
+    // ─── Reset ───────────────────────────────────────────────────
+    function resetGame() {
+      init();
+      autoPlay = true;
+      stepRequested = false;
+      document.getElementById('modeLabel').textContent = 'Mode: Auto';
+      document.getElementById('btnPlay').textContent = '▶ Play';
+      frameCount = 0;
     }
 
     // ─── Input ───────────────────────────────────────────────────
@@ -234,9 +283,22 @@
       oldKeys[e.key] = false;
     });
 
+    // ─── Step Mode Controls ──────────────────────────────────────
+    document.getElementById('btnPlay').addEventListener('click', () => {
+      autoPlay = !autoPlay;
+      document.getElementById('btnPlay').textContent = autoPlay ? '▶ Play' : '⏸ Pause';
+      document.getElementById('modeLabel').textContent = autoPlay ? 'Mode: Auto' : 'Mode: Step';
+    });
+    document.getElementById('btnStep').addEventListener('click', () => {
+      if (!autoPlay) {
+        doPatternMovementTiled();
+      }
+    });
+    document.getElementById('btnReset').addEventListener('click', resetGame);
+
     // ─── Game Loop ───────────────────────────────────────────────
     function update() {
-      if (frameCount % STEP_INTERVAL === 0 && !stop) {
+      if (frameCount % STEP_INTERVAL === 0 && !stop && autoPlay) {
         doPatternMovementTiled();
       }
       frameCount++;
@@ -250,7 +312,6 @@
       const GRID_SIZE = 20;
       const GRID_PX = GRID_SIZE * TILE_SIZE;
 
-      // Grid lines
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
       ctx.lineWidth = 1;
       for (let r = 0; r <= GRID_SIZE; r++) {
@@ -260,7 +321,6 @@
         ctx.beginPath(); ctx.moveTo(c * TILE_SIZE, 0); ctx.lineTo(c * TILE_SIZE, GRID_PX); ctx.stroke();
       }
 
-      // Draw each path tile along the rectangle (20×20 grid, draw path highlights)
       const segEndpoints = [
         { sx: 3, sy: 10, ex: 18, ey: 10 },
         { sx: 18, sy: 10, ex: 18, ey: 12 },
@@ -284,12 +344,81 @@
       drawCat(catPos.x * TILE_SIZE, catPos.y * TILE_SIZE);
       drawMouse(mousePos.x * TILE_SIZE, mousePos.y * TILE_SIZE);
 
+      // ─── Instruction Queue HUD ─────────────────────────────────
+      const panelX = 730;
+      const panelY = 80;
+      const panelW = 270;
+      const panelH = 300;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 10);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,217,61,0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 10);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffd93d';
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.fillText('🧠 AI Brain', panelX + 14, panelY + 22);
+
+      ctx.fillStyle = '#888';
+      ctx.font = '10px "Courier New", monospace';
+      ctx.fillText('Basic Tiled — absolute coordinates', panelX + 14, panelY + 36);
+
+      for (let i = 0; i < kMaxPathLength; i++) {
+        const rowY = panelY + 56 + i * 50;
+        let statusIcon, statusColor;
+        if (i < currentStep) {
+          statusIcon = '✅';
+          statusColor = '#4ade80';
+        } else if (i === currentStep) {
+          statusIcon = '▶';
+          statusColor = '#ffd93d';
+        } else {
+          statusIcon = '⏳';
+          statusColor = '#555';
+        }
+
+        if (i === currentStep) {
+          ctx.fillStyle = 'rgba(255,217,61,0.12)';
+          ctx.beginPath();
+          ctx.roundRect(panelX + 8, rowY - 4, panelW - 16, 44, 5);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = statusColor;
+        ctx.font = '14px "Courier New", monospace';
+        ctx.fillText(statusIcon, panelX + 14, rowY + 14);
+
+        ctx.font = '12px "Courier New", monospace';
+        ctx.fillStyle = statusColor;
+        ctx.fillText(getInstructionDesc(i), panelX + 38, rowY + 14);
+
+        ctx.fillStyle = i <= currentStep ? '#aaa' : '#444';
+        ctx.font = '10px "Courier New", monospace';
+        const seg = segEndpoints[i];
+        ctx.fillText('From (' + seg.sx + ',' + seg.sy + ') → (' + seg.ex + ',' + seg.ey + ')', panelX + 38, rowY + 30);
+      }
+
+      const statsY = panelY + panelH - 40;
+      ctx.fillStyle = '#ccc';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillText('Progress: ' + currentStep + '/' + kMaxPathLength, panelX + 14, statsY);
+      ctx.fillStyle = autoPlay ? '#4ade80' : '#ffd93d';
+      ctx.fillText('Mode: ' + (autoPlay ? 'Auto' : 'Step'), panelX + 14, statsY + 16);
+
+      ctx.restore();
+
       ctx.save();
       ctx.fillStyle = '#fff';
       ctx.font = '14px "Courier New", monospace';
-      ctx.fillText('Cat pos X,y ' + catPos.x + ',' + catPos.y, 750, 20);
-      ctx.fillText('Mouse pos X,y ' + mousePos.x + ',' + mousePos.y, 750, 40);
-      ctx.fillText('Step ' + currentStep + '/' + kMaxPathLength, 750, 60);
+      ctx.fillText('Cat pos X,y ' + catPos.x + ',' + catPos.y, 650, 20);
+      ctx.fillText('Mouse pos X,y ' + mousePos.x + ',' + mousePos.y, 650, 40);
+      ctx.fillText('Step ' + currentStep + '/' + kMaxPathLength, 650, 60);
       ctx.restore();
     }
 

@@ -16,6 +16,33 @@
       font-family: 'Courier New', monospace;
       color: #ccc;
     }
+    #controls-bar {
+      margin-bottom: 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    #controls-bar button {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: #888;
+      cursor: pointer;
+      padding: 6px 14px;
+      font-family: inherit;
+      font-size: inherit;
+      transition: all 0.15s;
+    }
+    #controls-bar button:hover {
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+      background: rgba(255,107,107,0.08);
+    }
+    #modeLabel {
+      color: #ff6b6b;
+    }
     #gameCanvas {
       border: 2px solid #ff6b6b;
       border-radius: 4px;
@@ -48,6 +75,12 @@
   </style>
 </head>
 <body>
+  <div id="controls-bar">
+    <button id="btnPlay">▶ Play</button>
+    <button id="btnStep">⏭ Step</button>
+    <button id="btnReset">⏮ Reset</button>
+    <span id="modeLabel" style="color:#ff6b6b;">Mode: Auto</span>
+  </div>
   <canvas id="gameCanvas"></canvas>
   <div id="controls">
     Pattern Step Sequence — <strong>Forward (50px)</strong> → <strong>Left (50px)</strong> → <strong>Back (50px)</strong> → <strong>Right (50px)</strong> &nbsp;|&nbsp;
@@ -82,6 +115,8 @@
     let mouseX = 400, mouseY = 400;
     let currentIndex = 0;
     let counter = 0;
+    let autoPlay = true;
+    let stepRequested = false;
 
     // Pattern: forward 50, left 50, back 50, right 50 (matching C#)
     const pattern = [
@@ -131,6 +166,7 @@
 
     // ─── Logic ───────────────────────────────────────────────────
     function doBasicPattern() {
+      if (!autoPlay) return;
       if (counter % STEP_INTERVAL === 0) {
         const p = pattern[currentIndex];
         mouseX += p.turnRight;
@@ -141,20 +177,159 @@
       }
     }
 
+    function stepOnce() {
+      const p = pattern[currentIndex];
+      mouseX += p.turnRight;
+      mouseX -= p.turnLeft;
+      mouseY += p.stepForward;
+      mouseY -= p.stepBackward;
+      currentIndex = (currentIndex + 1) % pattern.length;
+    }
+
+    function getDirectionLabel(idx) {
+      const p = pattern[idx];
+      if (p.stepForward > 0) return 'Forward ' + p.stepForward + 'px';
+      if (p.stepBackward > 0) return 'Back ' + p.stepBackward + 'px';
+      if (p.turnLeft > 0) return 'Left ' + p.turnLeft + 'px';
+      if (p.turnRight > 0) return 'Right ' + p.turnRight + 'px';
+      return 'Idle';
+    }
+
+    function getDirectionArrow(idx) {
+      const p = pattern[idx];
+      if (p.stepForward > 0) return '↑';
+      if (p.stepBackward > 0) return '↓';
+      if (p.turnLeft > 0) return '←';
+      if (p.turnRight > 0) return '→';
+      return '·';
+    }
+
+    function getVectorLabel(idx) {
+      const p = pattern[idx];
+      if (p.stepForward > 0) return '→ (0, -1)';
+      if (p.stepBackward > 0) return '→ (0, 1)';
+      if (p.turnLeft > 0) return '→ (-1, 0)';
+      if (p.turnRight > 0) return '→ (1, 0)';
+      return '→ (0, 0)';
+    }
+
+    // ─── Instruction Queue HUD ───────────────────────────────────
+    function drawQueueHUD() {
+      const panelX = 720;
+      const panelY = 100;
+      const panelW = 280;
+      const panelH = 300;
+      const rowH = 32;
+      const pad = 16;
+
+      // Panel background
+      ctx.save();
+      ctx.fillStyle = 'rgba(10, 10, 26, 0.82)';
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 10);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 107, 107, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 10);
+      ctx.stroke();
+
+      // Title
+      ctx.fillStyle = '#ff6b6b';
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.fillText('🧠 AI Brain', panelX + pad, panelY + pad + 4);
+
+      // Separator
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(panelX + pad, panelY + pad + 18);
+      ctx.lineTo(panelX + panelW - pad, panelY + pad + 18);
+      ctx.stroke();
+
+      // Queue rows
+      for (let i = 0; i < pattern.length; i++) {
+        const rowY = panelY + pad + 32 + i * rowH;
+
+        // Status icon
+        let icon, color;
+        if (i < currentIndex) {
+          icon = '✅';
+          color = '#4caf50';
+        } else if (i === currentIndex) {
+          icon = '▶';
+          color = '#ff6b6b';
+        } else {
+          icon = '⏳';
+          color = 'rgba(255,255,255,0.3)';
+        }
+
+        ctx.font = '13px "Courier New", monospace';
+        ctx.fillStyle = color;
+        ctx.fillText(icon + '  ' + getDirectionLabel(i), panelX + pad, rowY + 14);
+      }
+
+      // Info section
+      const infoY = panelY + pad + 32 + pattern.length * rowH + 12;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(panelX + pad, infoY - 6);
+      ctx.lineTo(panelX + panelW - pad, infoY - 6);
+      ctx.stroke();
+
+      // Vector
+      ctx.fillStyle = '#888';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillText('Vector: ' + getVectorLabel(currentIndex), panelX + pad, infoY + 6);
+
+      // Progress
+      ctx.fillStyle = '#ccc';
+      ctx.fillText('Progress: ' + currentIndex + '/' + pattern.length, panelX + pad, infoY + 24);
+
+      ctx.restore();
+    }
+
     // ─── Input ───────────────────────────────────────────────────
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') window.location.href = '../';
     });
 
+    // ─── Step Mode Controls ──────────────────────────────────────
+    document.getElementById('btnPlay').addEventListener('click', () => {
+      autoPlay = !autoPlay;
+      document.getElementById('modeLabel').textContent = 'Mode: ' + (autoPlay ? 'Auto' : 'Step');
+      document.getElementById('btnPlay').textContent = autoPlay ? '▶ Play' : '⏸ Pause';
+    });
+
+    document.getElementById('btnStep').addEventListener('click', () => {
+      if (!autoPlay) {
+        stepRequested = true;
+      }
+    });
+
+    document.getElementById('btnReset').addEventListener('click', () => {
+      mouseX = 400;
+      mouseY = 400;
+      currentIndex = 0;
+      counter = 0;
+    });
+
     // ─── Game Loop ───────────────────────────────────────────────
     function update() {
-      doBasicPattern();
+      if (autoPlay) {
+        doBasicPattern();
+      } else if (stepRequested) {
+        stepOnce();
+        stepRequested = false;
+      }
       counter = (counter + 1) % 60;
     }
 
     function draw() {
       ctx.fillStyle = '#4682B4'; // CornflowerBlue
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Instruction Queue panel
+      drawQueueHUD();
 
       // Draw mouse centered on its position (rendered at half scale like original)
       drawMouse(mouseX - 16, mouseY - 20);
@@ -166,7 +341,7 @@
       ctx.fillText('Mouse pos X,y ' + Math.round(mouseX) + ',' + Math.round(mouseY), 200, 40);
       ctx.fillText('Current Index ' + currentIndex, 200, 60);
       ctx.fillStyle = '#ff6b6b';
-      ctx.fillText('Step: ' + ['→','↑','←','↓'][currentIndex], 200, 80);
+      ctx.fillText('Step: ' + getDirectionArrow(currentIndex), 200, 80);
       ctx.restore();
     }
 

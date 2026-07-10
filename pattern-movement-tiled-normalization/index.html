@@ -45,9 +45,40 @@
       color: #a78bfa;
       background: rgba(167,139,250,0.08);
     }
+    #controls-bar {
+      margin-bottom: 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    #controls-bar button {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: #888;
+      cursor: pointer;
+      padding: 6px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    #controls-bar button:hover {
+      border-color: #a78bfa;
+      color: #a78bfa;
+      background: rgba(167,139,250,0.08);
+    }
+    #modeLabel { color: #a78bfa; }
   </style>
 </head>
 <body>
+  <div id="controls-bar">
+    <button id="btnPlay">▶ Play</button>
+    <button id="btnStep">⏭ Step</button>
+    <button id="btnReset">⏮ Reset</button>
+    <span id="modeLabel">Mode: Auto</span>
+  </div>
   <canvas id="gameCanvas"></canvas>
   <div id="controls">
     <strong>1</strong>: Respawn Mouse &nbsp;|&nbsp;
@@ -80,6 +111,10 @@
     let stop = false;
     let frameCount = 0;
     let oldKeys = {};
+
+    // ─── Step Mode State ─────────────────────────────────────────
+    let autoPlay = true;
+    let stepRequested = false;
 
     // ─── Sprites ─────────────────────────────────────────────────
     function drawCat(px, py) {
@@ -146,9 +181,19 @@
       ctx.restore();
     }
 
+    // ─── Instruction Descriptions ────────────────────────────────
+    function getInstructionDesc(index) {
+      const names = [
+        "Top: (3,10)→(3,18)",
+        "Right: (3,18)→(12,18)",
+        "Bottom: (12,18)→(12,10)",
+        "Left: (12,10)→(3,10)"
+      ];
+      return names[index] || "Seg " + index;
+    }
+
     // ─── Path Logic (Normalization version) ──────────────────────
     // Segments store relative offsets from the previous endpoint.
-    // BuildPathSegment saves start coords at index 0, otherwise stores delta.
     function buildPathSegment(startRow, startCol, endRow, endCol, index) {
       if (index === 0) {
         pathCol[index] = startCol;
@@ -226,16 +271,26 @@
       pathRow = new Array(kMaxPathLength).fill(-1);
       pathCol = new Array(kMaxPathLength).fill(-1);
 
-      // Rectangle path (same as original Normalization project)
-      buildPathSegment(10, 3, 18, 3, 0);  // top: (3,10) → (3,18)
-      buildPathSegment(18, 3, 18, 12, 1); // right: (3,18) → (12,18)
-      buildPathSegment(18, 12, 10, 12, 2);// bottom: (12,18) → (12,10)
-      buildPathSegment(10, 12, 10, 3, 3); // left: (12,10) → (3,10)
+      // Rectangle path
+      buildPathSegment(10, 3, 18, 3, 0);   // top
+      buildPathSegment(18, 3, 18, 12, 1);  // right
+      buildPathSegment(18, 12, 10, 12, 2); // bottom
+      buildPathSegment(10, 12, 10, 3, 3);  // left
 
       catPos.x = pathCol[0];
       catPos.y = pathRow[0];
       currentStep = 0;
       stop = false;
+    }
+
+    // ─── Reset ───────────────────────────────────────────────────
+    function resetGame() {
+      init();
+      autoPlay = true;
+      stepRequested = false;
+      document.getElementById('modeLabel').textContent = 'Mode: Auto';
+      document.getElementById('btnPlay').textContent = '▶ Play';
+      frameCount = 0;
     }
 
     // ─── Input ───────────────────────────────────────────────────
@@ -251,9 +306,22 @@
       oldKeys[e.key] = false;
     });
 
+    // ─── Step Mode Controls ──────────────────────────────────────
+    document.getElementById('btnPlay').addEventListener('click', () => {
+      autoPlay = !autoPlay;
+      document.getElementById('btnPlay').textContent = autoPlay ? '▶ Play' : '⏸ Pause';
+      document.getElementById('modeLabel').textContent = autoPlay ? 'Mode: Auto' : 'Mode: Step';
+    });
+    document.getElementById('btnStep').addEventListener('click', () => {
+      if (!autoPlay) {
+        doPatternMovementTiledNormalization();
+      }
+    });
+    document.getElementById('btnReset').addEventListener('click', resetGame);
+
     // ─── Game Loop ───────────────────────────────────────────────
     function update() {
-      if (frameCount % STEP_INTERVAL === 0 && !stop) {
+      if (frameCount % STEP_INTERVAL === 0 && !stop && autoPlay) {
         doPatternMovementTiledNormalization();
       }
       frameCount++;
@@ -264,8 +332,9 @@
       ctx.fillStyle = BG_COLOR;
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-      // Grid background
       const GRID_PX = GRID_SIZE * TILE_SIZE;
+
+      // Grid background
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
       ctx.lineWidth = 1;
       for (let r = 0; r <= GRID_SIZE; r++) {
@@ -275,8 +344,7 @@
         ctx.beginPath(); ctx.moveTo(c * TILE_SIZE, 0); ctx.lineTo(c * TILE_SIZE, GRID_PX); ctx.stroke();
       }
 
-      // Draw path as white tiles (highlight the 4-segment rectangle path)
-      // Path segments in absolute coords:
+      // Draw path as white tiles (4-segment rectangle path)
       const segments = [
         { startX: 3, startY: 10, endX: 18, endY: 10 },
         { startX: 18, startY: 10, endX: 18, endY: 12 },
@@ -300,12 +368,93 @@
       drawCat(catPos.x * TILE_SIZE, catPos.y * TILE_SIZE);
       drawMouse(mousePos.x * TILE_SIZE, mousePos.y * TILE_SIZE);
 
+      // ─── Instruction Queue HUD ─────────────────────────────────
+      const panelX = 730;
+      const panelY = 80;
+      const panelW = 270;
+      const panelH = 340;
+
+      // Panel background
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 10);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(167,139,250,0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(panelX, panelY, panelW, panelH, 10);
+      ctx.stroke();
+
+      // Title
+      ctx.fillStyle = '#a78bfa';
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.fillText('🧠 AI Brain', panelX + 14, panelY + 22);
+
+      // Queue rows
+      ctx.font = '12px "Courier New", monospace';
+      for (let i = 0; i < kMaxPathLength; i++) {
+        const rowY = panelY + 50 + i * 42;
+        let statusIcon, statusColor;
+        if (i < currentStep) {
+          statusIcon = '✅';
+          statusColor = '#4ade80';
+        } else if (i === currentStep) {
+          statusIcon = '▶';
+          statusColor = '#a78bfa';
+        } else {
+          statusIcon = '⏳';
+          statusColor = '#555';
+        }
+
+        // Row bg for current
+        if (i === currentStep) {
+          ctx.fillStyle = 'rgba(167,139,250,0.12)';
+          ctx.beginPath();
+          ctx.roundRect(panelX + 8, rowY - 4, panelW - 16, 36, 5);
+          ctx.fill();
+        }
+
+        // Status icon
+        ctx.fillStyle = statusColor;
+        ctx.font = '14px "Courier New", monospace';
+        ctx.fillText(statusIcon, panelX + 14, rowY + 14);
+
+        // Instruction name
+        ctx.font = '12px "Courier New", monospace';
+        ctx.fillStyle = statusColor;
+        ctx.fillText(getInstructionDesc(i), panelX + 38, rowY + 14);
+
+        // Delta info
+        ctx.fillStyle = i <= currentStep ? '#aaa' : '#444';
+        ctx.font = '10px "Courier New", monospace';
+        let deltaInfo = '';
+        if (i < pathCol.length - 1) {
+          deltaInfo = 'Δ(' + pathCol[i+1] + ',' + pathRow[i+1] + ')';
+        }
+        ctx.fillText(deltaInfo, panelX + 38, rowY + 28);
+      }
+
+      // Bottom stats
+      const statsY = panelY + panelH - 40;
+      ctx.fillStyle = '#ccc';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillText('Progress: ' + currentStep + '/' + kMaxPathLength, panelX + 14, statsY);
+
+      // Delta accumulator concept note
+      ctx.fillStyle = '#888';
+      ctx.font = '10px "Courier New", monospace';
+      ctx.fillText('Normalization: relative Δ per segment', panelX + 14, statsY + 16);
+
+      ctx.restore();
+
+      // Original HUD
       ctx.save();
       ctx.fillStyle = '#fff';
       ctx.font = '14px "Courier New", monospace';
-      ctx.fillText('Cat pos X,y ' + catPos.x + ',' + catPos.y, 750, 20);
-      ctx.fillText('Mouse pos X,y ' + mousePos.x + ',' + mousePos.y, 750, 40);
-      ctx.fillText('Step ' + currentStep + '/' + kMaxPathLength, 750, 60);
+      ctx.fillText('Cat pos X,y ' + catPos.x + ',' + catPos.y, 650, 20);
+      ctx.fillText('Mouse pos X,y ' + mousePos.x + ',' + mousePos.y, 650, 40);
+      ctx.fillText('Step ' + currentStep + '/' + kMaxPathLength, 650, 60);
       ctx.restore();
     }
 
