@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pattern Movement — Tiled (Normalization)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #ccc;
+    }
+    #gameCanvas {
+      border: 2px solid #a78bfa;
+      border-radius: 4px;
+      image-rendering: pixelated;
+    }
+    #controls {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 13px;
+      color: #555;
+    }
+    #controls strong { color: #a78bfa; }
+    #backBtn {
+      margin-top: 10px;
+      padding: 8px 20px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: #888;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #backBtn:hover {
+      border-color: #a78bfa;
+      color: #a78bfa;
+      background: rgba(167,139,250,0.08);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="controls">
+    <strong>1</strong>: Respawn Mouse &nbsp;|&nbsp;
+    <strong>ESC</strong>: Back to Menu
+  </div>
+  <button id="backBtn" onclick="window.location.href='../'">← Back to Main Menu</button>
+  <script>
+    // ─── Constants ───────────────────────────────────────────────
+    const kMaxPathLength = 4;
+    const TILE_SIZE = 32;
+    const CANVAS_W = 1024;
+    const CANVAS_H = 768;
+    const BG_COLOR = '#4682B4';
+    const STEP_INTERVAL = 30;
+    const GRID_SIZE = 20;
+
+    // ─── Canvas ──────────────────────────────────────────────────
+    const canvas = document.getElementById('gameCanvas');
+    canvas.width = CANVAS_W;
+    canvas.height = CANVAS_H;
+    const ctx = canvas.getContext('2d');
+
+    // ─── State ───────────────────────────────────────────────────
+    let catPos = { x: 0, y: 0 };
+    let mousePos = { x: 0, y: 0 };
+    let pathRow = new Array(kMaxPathLength).fill(-1);
+    let pathCol = new Array(kMaxPathLength).fill(-1);
+    let currentStep = 0;
+    let counter = 0;
+    let stop = false;
+    let frameCount = 0;
+    let oldKeys = {};
+
+    // ─── Sprites ─────────────────────────────────────────────────
+    function drawCat(px, py) {
+      ctx.save();
+      ctx.fillStyle = '#FFA500';
+      ctx.fillRect(px + 2, py + 4, 28, 24);
+      ctx.fillStyle = '#FFB830';
+      ctx.fillRect(px + 6, py, 20, 16);
+      ctx.fillStyle = '#FF8C00';
+      ctx.beginPath();
+      ctx.moveTo(px + 6, py); ctx.lineTo(px + 10, py - 8); ctx.lineTo(px + 14, py); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(px + 18, py); ctx.lineTo(px + 22, py - 8); ctx.lineTo(px + 26, py); ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.fillRect(px + 10, py + 4, 4, 4);
+      ctx.fillRect(px + 18, py + 4, 4, 4);
+      ctx.strokeStyle = '#FF8C00';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(px + 2, py + 16);
+      ctx.quadraticCurveTo(px - 6, py + 8, px - 2, py + 24);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMouse(px, py) {
+      ctx.save();
+      ctx.fillStyle = '#A9A9A9';
+      ctx.beginPath();
+      ctx.ellipse(px + 16, py + 20, 14, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#B0B0B0';
+      ctx.beginPath();
+      ctx.arc(px + 16, py + 8, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#999';
+      ctx.beginPath();
+      ctx.arc(px + 8, py + 2, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px + 24, py + 2, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.fillRect(px + 12, py + 6, 3, 3);
+      ctx.fillRect(px + 19, py + 6, 3, 3);
+      ctx.fillStyle = '#FF69B4';
+      ctx.fillRect(px + 14, py + 10, 4, 3);
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px + 16, py + 28);
+      ctx.quadraticCurveTo(px + 16, py + 36, px + 24, py + 34);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawTile(px, py) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+      ctx.strokeStyle = 'rgba(200,200,200,0.3)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 0.5, py + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+      ctx.restore();
+    }
+
+    // ─── Path Logic (Normalization version) ──────────────────────
+    // Segments store relative offsets from the previous endpoint.
+    // BuildPathSegment saves start coords at index 0, otherwise stores delta.
+    function buildPathSegment(startRow, startCol, endRow, endCol, index) {
+      if (index === 0) {
+        pathCol[index] = startCol;
+        pathRow[index] = startRow;
+        pathCol[index + 1] = endCol - startCol;
+        pathRow[index + 1] = endRow - startRow;
+      } else if (index < pathCol.length - 1) {
+        pathCol[index + 1] = endCol - startCol;
+        pathRow[index + 1] = endRow - startRow;
+      }
+    }
+
+    function doPatternMovementTiledNormalization() {
+      let endCol, endRow;
+      let sumCol = 0, sumRow = 0;
+
+      if (currentStep === pathCol.length - 1) {
+        endCol = pathCol[0];
+        endRow = pathRow[0];
+      } else {
+        // Sum all segments up to currentStep to get absolute position
+        for (let i = 0; i <= currentStep; i++) {
+          sumCol += pathCol[i];
+          sumRow += pathRow[i];
+        }
+        endCol = sumCol + pathCol[currentStep + 1];
+        endRow = sumRow + pathRow[currentStep + 1];
+      }
+
+      let nextCol = catPos.x;
+      let nextRow = catPos.y;
+      let deltaRow = endRow - catPos.y;
+      let deltaCol = endCol - catPos.x;
+      let stepCol = 1, stepRow = 1;
+      let fraction;
+
+      if (deltaRow < 0) stepRow = -1; else stepRow = 1;
+      if (deltaCol < 0) stepCol = -1; else stepCol = 1;
+
+      deltaRow = Math.abs(deltaRow);
+      deltaCol = Math.abs(deltaCol);
+
+      // Bresenham step
+      if (deltaCol > deltaRow) {
+        fraction = deltaRow * 2 - deltaCol;
+        if (fraction >= 0 && nextCol !== endCol) {
+          nextRow += stepRow;
+        }
+        nextCol += stepCol;
+        catPos.x = nextCol;
+        catPos.y = nextRow;
+      } else {
+        fraction = deltaCol * 2 - deltaRow;
+        if (fraction >= 0 && nextRow !== endRow) {
+          nextCol += stepCol;
+        }
+        nextRow += stepRow;
+        catPos.x = nextCol;
+        catPos.y = nextRow;
+      }
+
+      if (catPos.x === endCol && catPos.y === endRow) {
+        currentStep++;
+        if (currentStep >= kMaxPathLength) {
+          currentStep = 0;
+        }
+      }
+    }
+
+    // ─── Init ────────────────────────────────────────────────────
+    function init() {
+      catPos = { x: Math.floor(Math.random() * 10), y: Math.floor(Math.random() * 10) };
+      mousePos = { x: Math.floor(Math.random() * 10), y: Math.floor(Math.random() * 10) };
+
+      pathRow = new Array(kMaxPathLength).fill(-1);
+      pathCol = new Array(kMaxPathLength).fill(-1);
+
+      // Rectangle path (same as original Normalization project)
+      buildPathSegment(10, 3, 18, 3, 0);  // top: (3,10) → (3,18)
+      buildPathSegment(18, 3, 18, 12, 1); // right: (3,18) → (12,18)
+      buildPathSegment(18, 12, 10, 12, 2);// bottom: (12,18) → (12,10)
+      buildPathSegment(10, 12, 10, 3, 3); // left: (12,10) → (3,10)
+
+      catPos.x = pathCol[0];
+      catPos.y = pathRow[0];
+      currentStep = 0;
+      stop = false;
+    }
+
+    // ─── Input ───────────────────────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { window.location.href = '../'; return; }
+      if (e.key === '1' && !oldKeys['1']) {
+        mousePos = { x: Math.floor(Math.random() * 10), y: Math.floor(Math.random() * 10) };
+        stop = false;
+      }
+      oldKeys[e.key] = true;
+    });
+    document.addEventListener('keyup', (e) => {
+      oldKeys[e.key] = false;
+    });
+
+    // ─── Game Loop ───────────────────────────────────────────────
+    function update() {
+      if (frameCount % STEP_INTERVAL === 0 && !stop) {
+        doPatternMovementTiledNormalization();
+      }
+      frameCount++;
+      if (frameCount > 59) frameCount = 0;
+    }
+
+    function draw() {
+      ctx.fillStyle = BG_COLOR;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Grid background
+      const GRID_PX = GRID_SIZE * TILE_SIZE;
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      for (let r = 0; r <= GRID_SIZE; r++) {
+        ctx.beginPath(); ctx.moveTo(0, r * TILE_SIZE); ctx.lineTo(GRID_PX, r * TILE_SIZE); ctx.stroke();
+      }
+      for (let c = 0; c <= GRID_SIZE; c++) {
+        ctx.beginPath(); ctx.moveTo(c * TILE_SIZE, 0); ctx.lineTo(c * TILE_SIZE, GRID_PX); ctx.stroke();
+      }
+
+      // Draw path as white tiles (highlight the 4-segment rectangle path)
+      // Path segments in absolute coords:
+      const segments = [
+        { startX: 3, startY: 10, endX: 18, endY: 10 },
+        { startX: 18, startY: 10, endX: 18, endY: 12 },
+        { startX: 18, startY: 12, endX: 10, endY: 12 },
+        { startX: 10, startY: 12, endX: 10, endY: 3 },
+      ];
+      for (const seg of segments) {
+        let x = seg.startX, y = seg.startY;
+        const dx = seg.endX - seg.startX, dy = seg.endY - seg.startY;
+        const steps = Math.max(Math.abs(dx), Math.abs(dy));
+        for (let i = 0; i <= steps; i++) {
+          const t = steps > 0 ? i / steps : 0;
+          const px = Math.round(seg.startX + dx * t);
+          const py = Math.round(seg.startY + dy * t);
+          if (px >= 0 && px < GRID_SIZE && py >= 0 && py < GRID_SIZE) {
+            drawTile(px * TILE_SIZE, py * TILE_SIZE);
+          }
+        }
+      }
+
+      drawCat(catPos.x * TILE_SIZE, catPos.y * TILE_SIZE);
+      drawMouse(mousePos.x * TILE_SIZE, mousePos.y * TILE_SIZE);
+
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.font = '14px "Courier New", monospace';
+      ctx.fillText('Cat pos X,y ' + catPos.x + ',' + catPos.y, 750, 20);
+      ctx.fillText('Mouse pos X,y ' + mousePos.x + ',' + mousePos.y, 750, 40);
+      ctx.fillText('Step ' + currentStep + '/' + kMaxPathLength, 750, 60);
+      ctx.restore();
+    }
+
+    init();
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>

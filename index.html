@@ -191,6 +191,13 @@
     a.card:nth-child(1) { animation-delay: 0.1s; }
     a.card:nth-child(2) { animation-delay: 0.2s; }
     a.card:nth-child(3) { animation-delay: 0.3s; }
+    a.card:nth-child(4) { animation-delay: 0.4s; }
+    a.card:nth-child(5) { animation-delay: 0.5s; }
+    a.card:nth-child(6) { animation-delay: 0.6s; }
+    a.card:nth-child(7) { animation-delay: 0.7s; }
+    a.card:nth-child(8) { animation-delay: 0.8s; }
+    a.card:nth-child(9) { animation-delay: 0.9s; }
+    a.card:nth-child(10) { animation-delay: 1.0s; }
 
     @keyframes cardUp {
       from { opacity: 0; transform: translateY(30px); }
@@ -393,7 +400,7 @@
       <div class="badge">🎮 Game Collection</div>
       <h1>Game Demos &amp; Visualizations</h1>
       <p>HTML5 Canvas ports of MonoGame AI demonstrations + algorithm visualizations</p>
-      <div class="count">4 projects online</div>
+      <div class="count">10 projects online</div>
     </header>
 
     <div class="games">
@@ -470,6 +477,126 @@
           <div class="card-meta">
             <span>👆 Click-to-plot</span>
             <span>⏭️ Step mode</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Pattern Movement: Basic -->
+      <a class="card algo" href="pattern-movement-basic/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">🌀</span>
+        </div>
+        <div class="card-body">
+          <h2>Pattern: Basic Sequence <span class="tag">Step</span></h2>
+          <p>Simple 4-step square pattern — Forward, Left, Back, Right (50px each). Mouse follows a hard-coded ControlData sequence on an open canvas.</p>
+          <div class="card-meta">
+            <span>📐 4-step</span>
+            <span>🔄 Loop</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Pattern Movement: Continuous -->
+      <a class="card algo" href="pattern-movement-continuous/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">🔀</span>
+        </div>
+        <div class="card-body">
+          <h2>Pattern: Continuous <span class="tag">ZigZag</span></h2>
+          <p>Arrow moves through a 5-segment zigzag pattern with rotation &amp; speed control. Arrow keys to steer, ↑↓ for speed. Fixed Y-bounds bug from original.</p>
+          <div class="card-meta">
+            <span>⌨️ Interactive</span>
+            <span>🐛 Fixed</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Pattern Movement: Tiled Basic -->
+      <a class="card algo" href="pattern-movement-tiled-basic/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">🧩</span>
+        </div>
+        <div class="card-body">
+          <h2>Pattern: Tiled Basic <span class="tag">Grid</span></h2>
+          <p>Cat walks a rectangle path on a 20×20 tile grid using Bresenham step interpolation. 4 absolute-position segments loop continuously.</p>
+          <div class="card-meta">
+            <span>🗺️ 20×20</span>
+            <span>🐱 Cat</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Pattern Movement: Normalization -->
+      <a class="card algo" href="pattern-movement-tiled-normalization/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">📏</span>
+        </div>
+        <div class="card-body">
+          <h2>Pattern: Normalization <span class="tag">Delta</span></h2>
+          <p>Cat follows a rectangle path using relative delta segments. Each segment stores the offset from the previous endpoint. Bresenham stepping with accumulated sum.</p>
+          <div class="card-meta">
+            <span>➕ Delta</span>
+            <span>🔄 Loop</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Pattern Movement: Complex -->
+      <a class="card algo" href="pattern-movement-complex/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">🌐</span>
+        </div>
+        <div class="card-body">
+          <h2>Pattern: Complex 8-Seg <span class="tag">Path</span></h2>
+          <p>Cat navigates an 8-segment complex path (4→11→24→27→24→17→13→5→2) using relative delta + Bresenham interpolation. Loops continuously.</p>
+          <div class="card-meta">
+            <span>🧵 8 segments</span>
+            <span>🔄 Loop</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Pattern Movement: Pat Matrix -->
+      <a class="card algo" href="pattern-movement/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">🎯</span>
+        </div>
+        <div class="card-body">
+          <h2>Pattern: Pat Matrix <span class="tag">Precalc</span></h2>
+          <p>Pre-computes the entire 7-segment pattern path onto a 20×20 matrix. Cat uses random-walk on marked tiles avoiding backtracking. Toggle 4/8 direction.</p>
+          <div class="card-meta">
+            <span>🧮 Matrix</span>
+            <span>🎲 Random Walk</span>
             <div class="status">
               <span class="dot"></span>
               <span class="live">Live</span>

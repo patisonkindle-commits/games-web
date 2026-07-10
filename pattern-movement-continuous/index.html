@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pattern Movement — Continuous</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #ccc;
+    }
+    #gameCanvas {
+      border: 2px solid #4ecdc4;
+      border-radius: 4px;
+      background: #4682B4;
+    }
+    #controls {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 13px;
+      color: #555;
+    }
+    #controls strong { color: #4ecdc4; }
+    #backBtn {
+      margin-top: 10px;
+      padding: 8px 20px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: #888;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #backBtn:hover {
+      border-color: #4ecdc4;
+      color: #4ecdc4;
+      background: rgba(78,205,196,0.08);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="controls">
+    <strong>← →</strong>: Rotate Arrow &nbsp;|&nbsp;
+    <strong>↑ ↓</strong>: Change Speed &nbsp;|&nbsp;
+    <strong>1</strong>: Randomize Mouse &nbsp;|&nbsp;
+    <strong>ESC</strong>: Back to Menu
+  </div>
+  <button id="backBtn" onclick="window.location.href='../'">← Back to Main Menu</button>
+  <script>
+    // ─── Constants ───────────────────────────────────────────────
+    const CANVAS_W = 1024;
+    const CANVAS_H = 768;
+
+    // ─── Canvas ──────────────────────────────────────────────────
+    const canvas = document.getElementById('gameCanvas');
+    canvas.width = CANVAS_W;
+    canvas.height = CANVAS_H;
+    const ctx = canvas.getContext('2d');
+
+    // ─── State ───────────────────────────────────────────────────
+    let arrowPos = { x: 50, y: 300 };
+    let arrowRotation = 0;  // degrees
+    let arrowSpeed = 1.0;
+
+    let mousePos = { x: 400, y: 300 };
+    // Mouse texture center (for drawing offset)
+    const mouseCenter = { x: 16, y: 20 };
+
+    // Pattern: ZigZag 5 steps
+    const kMaxPattern = 5;
+    // [speed, distance, rotation]
+    const pattern = [
+      [1.0, 20,   0],
+      [1.0, 200, 45],
+      [1.0, 200, -90],
+      [1.0, 200,  90],
+      [1.0, 200, -90],
+    ];
+
+    let currentIndex = 0;
+    let cumulativeDist = { x: 0, y: 0 };
+    let stop = false;
+
+    // Target
+    let angleTarget = 0;
+
+    // Arrow direction (computed each frame)
+    let arrowDir = { x: 0, y: 0 };
+
+    // Input
+    const keys = {};
+
+    // ─── Initialize Pattern Target ───────────────────────────────
+    function initPattern() {
+      angleTarget = pattern[currentIndex][2] + arrowRotation;
+      // calTarget = cos/sin of the rotation * distance + arrowPos
+      // (Stored as full target but we just track angle+distance in continuous mode)
+      cumulativeDist = { x: 0, y: 0 };
+    }
+
+    // ─── Sprites (procedural) ────────────────────────────────────
+    function drawArrow(px, py, degrees) {
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate((degrees + 90) * Math.PI / 180);
+
+      const w = 24, h = 40;
+      // Shaft
+      ctx.fillStyle = '#4ecdc4';
+      ctx.fillRect(-3, -h/2, 6, h);
+      // Arrow head
+      ctx.beginPath();
+      ctx.moveTo(0, -h/2 - 6);
+      ctx.lineTo(-10, -h/2 + 6);
+      ctx.lineTo(10, -h/2 + 6);
+      ctx.closePath();
+      ctx.fill();
+      // Glow
+      ctx.shadowColor = '#4ecdc4';
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = 'rgba(78,205,196,0.3)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-3, -h/2, 6, h);
+      ctx.restore();
+    }
+
+    function drawMouse(px, py) {
+      ctx.save();
+      ctx.translate(px, py);
+      // Body
+      ctx.fillStyle = '#A9A9A9';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Head
+      ctx.fillStyle = '#B0B0B0';
+      ctx.beginPath();
+      ctx.arc(0, -12, 8, 0, Math.PI * 2);
+      ctx.fill();
+      // Ears
+      ctx.fillStyle = '#999';
+      ctx.beginPath();
+      ctx.arc(-8, -18, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(8, -18, 5, 0, Math.PI * 2);
+      ctx.fill();
+      // Eyes
+      ctx.fillStyle = '#000';
+      ctx.fillRect(-4, -14, 3, 3);
+      ctx.fillRect(3, -14, 3, 3);
+      // Nose
+      ctx.fillStyle = '#FF69B4';
+      ctx.fillRect(-2, -10, 4, 3);
+      ctx.restore();
+    }
+
+    // ─── Pattern Movement Logic ──────────────────────────────────
+    function doPatternMovementSimulatedEnvir() {
+      // Compute arrow direction from current rotation
+      const rad = arrowRotation * Math.PI / 180;
+      arrowDir.x = Math.cos(rad) * arrowSpeed;
+      arrowDir.y = Math.sin(rad) * arrowSpeed;
+
+      const distLen = Math.hypot(cumulativeDist.x, cumulativeDist.y);
+
+      if (distLen < pattern[currentIndex][1]) {
+        arrowPos.x += arrowDir.x;
+        arrowPos.y += arrowDir.y;
+        cumulativeDist.x += arrowDir.x;
+        cumulativeDist.y += arrowDir.y;
+      } else {
+        if (currentIndex < kMaxPattern - 1) {
+          currentIndex++;
+          cumulativeDist = { x: 0, y: 0 };
+          angleTarget = pattern[currentIndex][2] + arrowRotation;
+        } else {
+          stop = true;
+        }
+      }
+    }
+
+    // ─── Update ──────────────────────────────────────────────────
+    function update() {
+      // Rotate arrow toward target angle
+      const angleOffset = 3;
+      if (angleTarget > arrowRotation) {
+        if (angleOffset > Math.abs(angleTarget - arrowRotation))
+          arrowRotation += Math.abs(angleTarget - arrowRotation);
+        else
+          arrowRotation += angleOffset;
+        arrowRotation = arrowRotation % 360;
+      } else if (angleTarget < arrowRotation) {
+        if (angleOffset > Math.abs(angleTarget - arrowRotation))
+          arrowRotation -= Math.abs(angleTarget - arrowRotation);
+        else
+          arrowRotation -= angleOffset;
+        arrowRotation = arrowRotation % 360;
+      }
+
+      // Pattern movement
+      if (!stop) doPatternMovementSimulatedEnvir();
+
+      // Out of bounds check (fixing original bug: Y compared to Width → use Height)
+      if (mousePos.x < 0 || mousePos.x > CANVAS_W)
+        mousePos = { x: Math.random() * CANVAS_W, y: Math.random() * CANVAS_H };
+      if (mousePos.y < 0 || mousePos.y > CANVAS_H)  // 🔧 Fixed: was CANVAS_W
+        mousePos = { x: Math.random() * CANVAS_W, y: Math.random() * CANVAS_H };
+      if (arrowPos.x < 0 || arrowPos.x > CANVAS_W)
+        arrowPos = { x: Math.random() * CANVAS_W, y: Math.random() * CANVAS_H };
+      if (arrowPos.y < 0 || arrowPos.y > CANVAS_H)  // 🔧 Fixed: was CANVAS_W
+        arrowPos = { x: Math.random() * CANVAS_W, y: Math.random() * CANVAS_H };
+
+      // Keyboard
+      if (keys['ArrowLeft']) {
+        arrowRotation -= 1;
+        arrowRotation = ((arrowRotation % 360) + 360) % 360;
+      }
+      if (keys['ArrowRight']) {
+        arrowRotation += 1;
+        arrowRotation = arrowRotation % 360;
+      }
+      if (keys['ArrowUp'] === 'just') {
+        arrowSpeed += 0.5;
+        keys['ArrowUp'] = true;
+      }
+      if (keys['ArrowDown'] === 'just') {
+        arrowSpeed -= 0.5;
+        if (arrowSpeed < 0.5) arrowSpeed = 0.5;
+        keys['ArrowDown'] = true;
+      }
+      if (keys['1'] === 'just') {
+        mousePos = { x: Math.random() * CANVAS_W, y: Math.random() * CANVAS_H };
+        stop = false;
+        // Reset pattern
+        currentIndex = 0;
+        cumulativeDist = { x: 0, y: 0 };
+        initPattern();
+        keys['1'] = true;
+      }
+    }
+
+    // ─── Draw ────────────────────────────────────────────────────
+    function draw() {
+      ctx.fillStyle = '#4682B4';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Grid (subtle)
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= CANVAS_W; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke();
+      }
+      for (let y = 0; y <= CANVAS_H; y += 50) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
+      }
+
+      // Path so far (line from arrow)
+      ctx.strokeStyle = 'rgba(78,205,196,0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(arrowPos.x, arrowPos.y);
+      const rad = arrowRotation * Math.PI / 180;
+      ctx.lineTo(arrowPos.x + Math.cos(rad) * 60, arrowPos.y + Math.sin(rad) * 60);
+      ctx.stroke();
+
+      // Draw sprites
+      drawMouse(mousePos.x, mousePos.y);
+      drawArrow(arrowPos.x, arrowPos.y, arrowRotation);
+
+      // HUD
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.font = '14px "Courier New", monospace';
+      ctx.fillText('Arrow Angle ' + Math.round(arrowRotation) + '°', 200, 20);
+      ctx.fillText('Pattern idx ' + currentIndex + ' | speed ' + pattern[currentIndex][0] + ' dist ' + pattern[currentIndex][1] + ' rot ' + pattern[currentIndex][2] + '°', 200, 40);
+      ctx.fillText('Cumulative dist ' + Math.round(Math.hypot(cumulativeDist.x, cumulativeDist.y)), 200, 60);
+      ctx.fillText('Arrow Speed: ' + arrowSpeed.toFixed(1), 200, 80);
+      if (stop) {
+        ctx.fillStyle = '#ffd93d';
+        ctx.fillText('⚠ PATTERN COMPLETE — Press 1 to reset', 200, 110);
+      }
+      ctx.restore();
+    }
+
+    // ─── Input ───────────────────────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { window.location.href = '../'; return; }
+      if (keys[e.key] === undefined || keys[e.key] === false) {
+        keys[e.key] = 'just';
+      } else {
+        keys[e.key] = true;
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      keys[e.key] = false;
+    });
+
+    initPattern();
+
+    // ─── Game Loop ───────────────────────────────────────────────
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>
