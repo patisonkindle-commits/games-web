@@ -337,211 +337,6 @@
     a.card.intercept .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
     .card-meta .status .live { color: #22c55e; }
 
-    /* ── Pattern Movement Group ── */
-    .pattern-group {
-      border-radius: 16px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-card);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      overflow: hidden;
-      animation: cardUp 0.6s ease-out 0.5s backwards;
-      transition: box-shadow 0.35s ease, border-color 0.35s ease;
-    }
-    .pattern-group:hover {
-      box-shadow: 0 12px 48px var(--glow-pattern);
-      border-color: rgba(244,114,182,0.2);
-    }
-
-    .pattern-group-header {
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 20px 24px;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      transition: background 0.2s;
-      text-decoration: none;
-      color: var(--text-primary);
-    }
-    .pattern-group-header:hover {
-      background: rgba(255,255,255,0.02);
-    }
-    .pattern-group-header::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      border-radius: 16px 16px 0 0;
-      background: linear-gradient(90deg, var(--accent-pattern), #f9a8d4);
-      transition: height 0.3s ease;
-    }
-    .pattern-group:hover .pattern-group-header::before {
-      height: 4px;
-    }
-
-    .pattern-group-header .thumb {
-      width: 56px; height: 56px;
-      border-radius: 12px;
-      background: rgba(244,114,182,0.08);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      flex-shrink: 0;
-      transition: transform 0.3s ease;
-    }
-    .pattern-group:hover .pattern-group-header .thumb {
-      transform: scale(1.05);
-    }
-    .pattern-group-header .info {
-      flex: 1;
-      min-width: 0;
-    }
-    .pattern-group-header .info h2 {
-      font-size: 17px;
-      font-weight: 700;
-      letter-spacing: -0.2px;
-      color: var(--accent-pattern);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .pattern-group-header .info h2 .tag {
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      padding: 2px 8px;
-      border-radius: 100px;
-      background: rgba(255,255,255,0.06);
-      color: var(--text-dim);
-    }
-    .pattern-group-header .info p {
-      color: var(--text-secondary);
-      font-size: 13px;
-      margin-top: 4px;
-    }
-    .pattern-group-header .chevron {
-      font-size: 20px;
-      color: var(--text-dim);
-      transition: transform 0.3s ease;
-      flex-shrink: 0;
-    }
-    .pattern-group.open .pattern-group-header .chevron {
-      transform: rotate(180deg);
-    }
-    .pattern-group-header .meta-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .pattern-group-header .meta-row span {
-      font-size: 11px;
-      color: var(--text-dim);
-      font-family: 'JetBrains Mono', monospace;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .pattern-group-header .meta-row .status {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11.5px;
-      font-weight: 500;
-      color: #22c55e;
-    }
-    .pattern-group-header .meta-row .status .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: #22c55e;
-      box-shadow: 0 0 6px rgba(34,197,94,0.5);
-    }
-
-    /* Sub-items grid */
-    .pattern-subgrid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 12px;
-      padding: 0 24px 24px;
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.45s cubic-bezier(.22,.61,.36,1), padding 0.3s ease, opacity 0.3s ease;
-      opacity: 0;
-    }
-    .pattern-group.open .pattern-subgrid {
-      max-height: 900px;
-      padding: 0 24px 24px;
-      opacity: 1;
-    }
-
-    a.sub-card {
-      display: block;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.05);
-      text-decoration: none;
-      color: var(--text-primary);
-      padding: 16px;
-      transition: all 0.25s ease;
-    }
-    a.sub-card:hover {
-      background: rgba(244,114,182,0.06);
-      border-color: rgba(244,114,182,0.15);
-      transform: translateY(-2px);
-    }
-    a.sub-card .sub-icon {
-      font-size: 20px;
-      margin-bottom: 8px;
-    }
-    a.sub-card h3 {
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: -0.1px;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    a.sub-card h3 .sub-tag {
-      font-size: 8.5px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-      padding: 2px 7px;
-      border-radius: 100px;
-      background: rgba(244,114,182,0.1);
-      color: var(--accent-pattern);
-      -webkit-text-fill-color: var(--accent-pattern);
-    }
-    a.sub-card p {
-      color: var(--text-dim);
-      font-size: 12px;
-      line-height: 1.55;
-      margin-top: 6px;
-    }
-    a.sub-card .sub-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255,255,255,0.03);
-    }
-    a.sub-card .sub-meta span {
-      font-size: 10.5px;
-      color: var(--text-dim);
-      font-family: 'JetBrains Mono', monospace;
-      display: flex;
-      align-items: center;
-      gap: 3px;
-    }
-
     /* ── Algorithm Card ── */
     a.card.algo .card-body h2 { color: var(--accent-algo); }
     a.card.algo::before { background: linear-gradient(90deg, var(--accent-algo), #c4b5fd); }
@@ -549,6 +344,14 @@
     a.card.algo .card-thumb .deco { width: 90px; height: 90px; background: var(--accent-algo); top: 10px; right: 15px; }
     a.card.algo .card-thumb .icon-bg { filter: drop-shadow(0 0 20px rgba(167,139,250,0.15)); }
     a.card.algo .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+
+    /* ── Pattern Movement Card ── */
+    a.card.pattern::before { background: linear-gradient(90deg, var(--accent-pattern), #f9a8d4); }
+    a.card.pattern:hover { box-shadow: 0 12px 48px var(--glow-pattern); border-color: rgba(244,114,182,0.2); }
+    a.card.pattern .card-body h2 { color: var(--accent-pattern); }
+    a.card.pattern .card-thumb .deco { width: 90px; height: 90px; background: var(--accent-pattern); top: 10px; left: 20px; }
+    a.card.pattern .card-thumb .icon-bg { filter: drop-shadow(0 0 20px rgba(244,114,182,0.15)); }
+    a.card.pattern .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
 
     /* ── Footer ── */
     footer {
@@ -575,7 +378,6 @@
       header { margin-bottom: 40px; }
       .games { grid-template-columns: 1fr; gap: 16px; }
       .card-thumb { height: 110px; }
-      .pattern-subgrid { grid-template-columns: 1fr; }
     }
     @media (min-width: 641px) and (max-width: 1024px) {
       .games { grid-template-columns: repeat(2, 1fr); }
@@ -600,7 +402,7 @@
       <div class="badge">🎮 Game Collection</div>
       <h1>Game Demos &amp; Visualizations</h1>
       <p>HTML5 Canvas ports of MonoGame AI demonstrations + algorithm visualizations</p>
-      <div class="count">10 projects online</div>
+      <div class="count">10 demos · 5 categories</div>
     </header>
 
     <div class="games">
@@ -685,87 +487,25 @@
         </div>
       </a>
 
-      <!-- Pattern Movement Group (Expanding parent card) -->
-      <div class="pattern-group" id="patternGroup">
-        <div class="pattern-group-header" onclick="togglePatternGroup()">
-          <div class="thumb">🔄</div>
-          <div class="info">
-            <h2>Pattern Movement <span class="tag">6 Variants</span></h2>
-            <p>Cat-and-mouse pattern movement algorithms — from basic step sequences to complex precomputed path matrices on tile grids.</p>
-            <div class="meta-row">
-              <span>🧩 6 demos</span>
-              <span>🗺️ Tile &amp; Free</span>
-              <div class="status">
-                <span class="dot"></span>
-                <span class="live">Live</span>
-              </div>
+      <!-- Pattern Movement (links to group overview) -->
+      <a class="card pattern" href="pattern-movement-all/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">🔄</span>
+        </div>
+        <div class="card-body">
+          <h2>Pattern Movement <span class="tag">6 Variants</span></h2>
+          <p>Six cat-and-mouse pattern movement algorithms — from basic step sequences to tile-grid rendering with Bresenham interpolation and precomputed path matrices.</p>
+          <div class="card-meta">
+            <span>🧩 6 demos</span>
+            <span>🗺️ Tile &amp; Free</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
             </div>
           </div>
-          <span class="chevron">▼</span>
         </div>
-
-        <div class="pattern-subgrid">
-          <a class="sub-card" href="pattern-movement-basic/">
-            <div class="sub-icon">🌀</div>
-            <h3>Basic Sequence <span class="sub-tag">Step</span></h3>
-            <p>4-step square — Forward, Left, Back, Right (50px each). Mouse follows a hard-coded ControlData sequence on an open canvas.</p>
-            <div class="sub-meta">
-              <span>📐 4-step</span>
-              <span>🔄 Loop</span>
-            </div>
-          </a>
-
-          <a class="sub-card" href="pattern-movement-continuous/">
-            <div class="sub-icon">🔀</div>
-            <h3>Continuous <span class="sub-tag">ZigZag</span></h3>
-            <p>5-segment zigzag with rotation &amp; speed control. Arrow keys to steer. <strong>Y-bounds bug fixed</strong> from original C#.</p>
-            <div class="sub-meta">
-              <span>⌨️ Interactive</span>
-              <span>🐛 Fixed</span>
-            </div>
-          </a>
-
-          <a class="sub-card" href="pattern-movement-tiled-basic/">
-            <div class="sub-icon">🧩</div>
-            <h3>Tiled Basic <span class="sub-tag">Grid</span></h3>
-            <p>Cat walks a rectangle path on a 20×20 tile grid via Bresenham step interpolation. 4 absolute-position segments loop continuously.</p>
-            <div class="sub-meta">
-              <span>🗺️ 20×20</span>
-              <span>🐱 Cat</span>
-            </div>
-          </a>
-
-          <a class="sub-card" href="pattern-movement-tiled-normalization/">
-            <div class="sub-icon">📏</div>
-            <h3>Normalization <span class="sub-tag">Delta</span></h3>
-            <p>Rectangle path using relative delta segments. Each stores the offset from the previous endpoint. Bresenham stepping with accumulated sum.</p>
-            <div class="sub-meta">
-              <span>➕ Delta</span>
-              <span>🔄 Loop</span>
-            </div>
-          </a>
-
-          <a class="sub-card" href="pattern-movement-complex/">
-            <div class="sub-icon">🌐</div>
-            <h3>Complex 8-Seg <span class="sub-tag">Path</span></h3>
-            <p>8-segment path (4→11→24→27→24→17→13→5→2) using relative delta + Bresenham interpolation. Cat navigates the full loop.</p>
-            <div class="sub-meta">
-              <span>🧵 8 segments</span>
-              <span>🔄 Loop</span>
-            </div>
-          </a>
-
-          <a class="sub-card" href="pattern-movement/">
-            <div class="sub-icon">🎯</div>
-            <h3>Pat Matrix <span class="sub-tag">Precalc</span></h3>
-            <p>Pre-computes a 7-segment pattern onto a 20×20 matrix. Cat uses random-walk on marked tiles while avoiding backtracking. Toggle 4/8 direction.</p>
-            <div class="sub-meta">
-              <span>🧮 Matrix</span>
-              <span>🎲 Random Walk</span>
-            </div>
-          </a>
-        </div>
-      </div>
+      </a>
 
     </div>
 
@@ -791,11 +531,6 @@
       starsEl.appendChild(star);
     }
 
-    // Pattern group toggle
-    function togglePatternGroup() {
-      const group = document.getElementById('patternGroup');
-      group.classList.toggle('open');
-    }
   </script>
 </body>
 </html>
