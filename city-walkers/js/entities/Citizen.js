@@ -189,11 +189,11 @@ export class Citizen {
     const [ax, ay] = this._alignment(nearby);
 
     this.applyForce(
-      pfx * 2.0 +          // path following is primary
+      pfx * 3.0 +          // path following is primary (keep on sidewalk!)
       cx * cohesionW +
       sx * separationW +
       ax * alignmentW,
-      pfy * 2.0 +
+      pfy * 3.0 +
       cy * cohesionW +
       sy * separationW +
       ay * alignmentW,
