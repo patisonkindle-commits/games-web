@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flocking Simulation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #16213e;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #ccc;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      border: 2px solid #a78bfa;
+      border-radius: 4px;
+      max-width: 100%;
+      max-height: 80vh;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    .controls-bar {
+      margin-top: 14px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0,0,0,0.4);
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .controls-bar .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #888;
+    }
+    .controls-bar .slider-group label {
+      min-width: 36px;
+      text-align: right;
+      font-weight: bold;
+    }
+    .controls-bar .slider-group .val {
+      min-width: 28px;
+      color: #a78bfa;
+      font-weight: bold;
+    }
+    .controls-bar input[type="range"] {
+      width: 90px;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255,255,255,0.15);
+      border-radius: 2px;
+      outline: none;
+    }
+    .controls-bar input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #a78bfa;
+      border: 2px solid #7c5bfa;
+      cursor: pointer;
+    }
+    .controls-bar input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #a78bfa;
+      border: 2px solid #7c5bfa;
+      cursor: pointer;
+    }
+    .controls-bar .sep input[type="range"] { background: rgba(255,107,107,0.3); }
+    .controls-bar .sep input[type="range"]::-webkit-slider-thumb { background: #ff6b6b; border-color: #ff4444; }
+    .controls-bar .sep .val { color: #ff6b6b; }
+    .controls-bar .coh input[type="range"] { background: rgba(78,205,196,0.3); }
+    .controls-bar .coh input[type="range"]::-webkit-slider-thumb { background: #4ecdc4; border-color: #2ebdb4; }
+    .controls-bar .coh .val { color: #4ecdc4; }
+    .controls-bar .ali input[type="range"] { background: rgba(255,217,61,0.3); }
+    .controls-bar .ali input[type="range"]::-webkit-slider-thumb { background: #ffd93d; border-color: #e0c020; }
+    .controls-bar .ali .val { color: #ffd93d; }
+    .controls-bar .avo input[type="range"] { background: rgba(167,139,250,0.3); }
+    .controls-bar .avo input[type="range"]::-webkit-slider-thumb { background: #a78bfa; border-color: #8b6ff0; }
+    .controls-bar .avo .val { color: #a78bfa; }
+    .controls-bar .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    .controls-bar button {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #ccc;
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+    .controls-bar button:hover {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+    }
+    .controls-bar button.primary {
+      background: rgba(167,139,250,0.2);
+      border-color: #a78bfa;
+      color: #a78bfa;
+    }
+    .controls-bar button.primary:hover {
+      background: rgba(167,139,250,0.35);
+    }
+    .left-info {
+      position: absolute;
+      top: 20px;
+      padding: 6px 12px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 4px;
+      font-size: 11px;
+      color: #666;
+      pointer-events: none;
+      text-align: center;
+    }
+    .hint {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: #555;
+      background: rgba(0,0,0,0.4);
+      padding: 4px 10px;
+      border-radius: 4px;
+      pointer-events: none;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .hint.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="controls-bar">
+    <div class="slider-group coh">
+      <label>COH</label>
+      <input type="range" id="cohesionSlider" min="0" max="200" value="100">
+      <span class="val" id="cohesionVal">1.00</span>
+    </div>
+    <div class="slider-group sep">
+      <label>SEP</label>
+      <input type="range" id="separationSlider" min="0" max="200" value="150">
+      <span class="val" id="separationVal">1.50</span>
+    </div>
+    <div class="slider-group ali">
+      <label>ALI</label>
+      <input type="range" id="alignmentSlider" min="0" max="200" value="100">
+      <span class="val" id="alignmentVal">1.00</span>
+    </div>
+    <div class="slider-group avo">
+      <label>AVOID</label>
+      <input type="range" id="avoidSlider" min="0" max="500" value="250">
+      <span class="val" id="avoidVal">2.50</span>
+    </div>
+    <div class="btn-group">
+      <button id="resetBtn" class="primary">↻ Reset Boids</button>
+      <button id="clearObstaclesBtn">✕ Clear Obstacles</button>
+      <button id="addBoidBtn">+ Boid</button>
+      <button id="removeBoidBtn">− Boid</button>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Left-click on canvas to place an obstacle · Right-click to remove nearest</div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

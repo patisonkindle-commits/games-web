@@ -22,11 +22,13 @@
       --accent-intercept: #ffd93d;
       --accent-algo: #a78bfa;
       --accent-pattern: #f472b6;
+      --accent-flock: #a78bfa;
       --glow-chase: rgba(255,107,107,0.15);
       --glow-tile: rgba(78,205,196,0.15);
       --glow-intercept: rgba(255,217,61,0.12);
       --glow-algo: rgba(167,139,250,0.15);
       --glow-pattern: rgba(244,114,182,0.15);
+      --glow-flock: rgba(167,139,250,0.15);
     }
 
     body {
@@ -353,6 +355,14 @@
     a.card.pattern .card-thumb .icon-bg { filter: drop-shadow(0 0 20px rgba(244,114,182,0.15)); }
     a.card.pattern .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
 
+    /* ── Flocking Card ── */
+    a.card.flock::before { background: linear-gradient(90deg, var(--accent-flock), #7c5bfa); }
+    a.card.flock:hover { box-shadow: 0 12px 48px var(--glow-flock); border-color: rgba(167,139,250,0.2); }
+    a.card.flock .card-body h2 { color: var(--accent-flock); }
+    a.card.flock .card-thumb .deco { width: 90px; height: 90px; background: var(--accent-flock); top: 10px; left: 20px; }
+    a.card.flock .card-thumb .icon-bg { filter: drop-shadow(0 0 20px rgba(167,139,250,0.15)); }
+    a.card.flock .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+
     /* ── Footer ── */
     footer {
       text-align: center;
@@ -402,7 +412,7 @@
       <div class="badge">🎮 Game Collection</div>
       <h1>Game Demos &amp; Visualizations</h1>
       <p>HTML5 Canvas ports of MonoGame AI demonstrations + algorithm visualizations</p>
-      <div class="count">10 demos · 5 categories</div>
+      <div class="count">11 demos · 6 categories</div>
     </header>
 
     <div class="games">
@@ -499,6 +509,26 @@
           <div class="card-meta">
             <span>🧩 6 demos</span>
             <span>🗺️ Tile &amp; Free</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Flocking Simulation -->
+      <a class="card flock" href="flocking/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">🐦</span>
+        </div>
+        <div class="card-body">
+          <h2>Flocking <span class="tag">Boids</span></h2>
+          <p>Interactive flocking simulation with real-time sliders for Cohesion, Separation, Alignment, and Obstacle Avoidance. Place obstacles with clicks, watch emergent swarm behavior.</p>
+          <div class="card-meta">
+            <span>🕹️ 4 sliders</span>
+            <span>🚧 Obstacles</span>
             <div class="status">
               <span class="dot"></span>
               <span class="live">Live</span>
