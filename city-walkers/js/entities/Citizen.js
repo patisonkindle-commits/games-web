@@ -43,7 +43,8 @@ export class Citizen {
   /** Current target waypoint */
   get target() {
     if (this.path.length === 0) return null;
-    return this.path[this.pathIndex % this.path.length];
+    if (this.pathIndex >= this.path.length) return null; // path complete
+    return this.path[this.pathIndex];
   }
 
   /** Distance to another citizen */
@@ -51,6 +52,11 @@ export class Citizen {
     const dx = other.x - this.x;
     const dy = other.y - this.y;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  /** Signal that path is complete — needs a new path */
+  get pathComplete() {
+    return this.path.length === 0 || this.pathIndex >= this.path.length;
   }
 
   /** Steer toward current waypoint (path following) */
@@ -68,13 +74,6 @@ export class Citizen {
       // Regenerate offset for next segment
       this.offX = (Math.random() - 0.5) * CONFIG.PATH_JITTER * this.personality;
       this.offY = (Math.random() - 0.5) * CONFIG.PATH_JITTER * this.personality;
-      // If we completed full cycle, reshuffle a bit
-      if (this.pathIndex >= this.path.length) {
-        this.pathIndex = 0;
-        // Add slight random offset to keep things fresh
-        this.offX = (Math.random() - 0.5) * 5;
-        this.offY = (Math.random() - 0.5) * 5;
-      }
       return this._pathFollow(); // immediately steer to next
     }
 

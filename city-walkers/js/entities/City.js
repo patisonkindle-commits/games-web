@@ -1,6 +1,7 @@
 // City.js — Generate city layout: blocks, roads, sidewalks, crosswalks, waypoints
 // Roads have actual width (CONFIG.ROAD_WIDTH). Building blocks sit between road edges.
 // Sidewalks sit at the building-edge / road-edge boundary.
+// Paths follow the sidewalk perimeter of a block (not random waypoint jumps).
 import { CONFIG } from '../config.js';
 
 export class City {
@@ -10,6 +11,8 @@ export class City {
     this.crosswalks = [];   // {x, y, w, h}
     this.waypoints = [];    // all walkable points for path generation
     this._roadSegments = []; // road centerlines (for drawing)
+    // NEW: per-block perimeter waypoints grouped
+    this.blockPaths = [];   // [{edge, x, y, sx, sy}...] ordered per-block
 
     this._build();
   }
@@ -17,9 +20,8 @@ export class City {
   _build() {
     const W = CONFIG.CANVAS_WIDTH;
     const H = CONFIG.CANVAS_HEIGHT;
-    const RW = CONFIG.ROAD_WIDTH;   // total road width
-    const HW = RW / 2;              // half-road (distance from center to edge)
-    const SW = CONFIG.SIDEWALK_WIDTH;
+    const RW = CONFIG.ROAD_WIDTH;
+    const HW = RW / 2;
 
     // Road center positions
     const hCenters = CONFIG.STREETS_H.map(f => Math.round(H * f));
@@ -33,156 +35,131 @@ export class City {
       this._roadSegments.push({ x1: px, y1: 0, x2: px, y2: H, horizontal: false });
     }
 
-    // ── Compute building row boundaries (y ranges between road horizontal bands) ──
+    // ── Compute building row/col boundaries (between road edges) ──
     const rowBounds = [];
     let prevY = 0;
     for (const cy of hCenters) {
       const roadStart = cy - HW;
       const roadEnd   = cy + HW;
-      if (roadStart > prevY) {
-        rowBounds.push({ y: prevY, h: roadStart - prevY }); // building row
-      }
+      if (roadStart > prevY) rowBounds.push({ y: prevY, h: roadStart - prevY });
       prevY = roadEnd;
     }
-    if (prevY < H) {
-      rowBounds.push({ y: prevY, h: H - prevY }); // last building row
-    }
+    if (prevY < H) rowBounds.push({ y: prevY, h: H - prevY });
 
-    // ── Compute building column boundaries (x ranges between road vertical bands) ──
     const colBounds = [];
     let prevX = 0;
     for (const cx of vCenters) {
       const roadStart = cx - HW;
       const roadEnd   = cx + HW;
-      if (roadStart > prevX) {
-        colBounds.push({ x: prevX, w: roadStart - prevX }); // building col
-      }
+      if (roadStart > prevX) colBounds.push({ x: prevX, w: roadStart - prevX });
       prevX = roadEnd;
     }
-    if (prevX < W) {
-      colBounds.push({ x: prevX, w: W - prevX }); // last building col
-    }
+    if (prevX < W) colBounds.push({ x: prevX, w: W - prevX });
 
-    // ── Create building blocks and sidewalks ──
-    const PAD = 4; // inner padding for building footprint
+    // ── Create building blocks, sidewalks, and per-block perimeter paths ──
+    const PAD = 4;
+    const STEP = 10; // waypoint spacing
 
-    for (const row of rowBounds) {
-      for (const col of colBounds) {
-        const bx = col.x;
-        const by = row.y;
-        const bw = col.w;
-        const bh = row.h;
+    for (let ri = 0; ri < rowBounds.length; ri++) {
+      for (let ci = 0; ci < colBounds.length; ci++) {
+        const bx = colBounds[ci].x;
+        const by = rowBounds[ri].y;
+        const bw = colBounds[ci].w;
+        const bh = rowBounds[ri].h;
 
-        // Building footprint (slightly inset)
+        // Building footprint
         if (bw > PAD * 2 && bh > PAD * 2) {
-          this.blocks.push({
-            x: bx + PAD,
-            y: by + PAD,
-            w: bw - PAD * 2,
-            h: bh - PAD * 2,
-          });
+          this.blocks.push({ x: bx + PAD, y: by + PAD, w: bw - PAD * 2, h: bh - PAD * 2 });
         }
 
-        // Sidewalks along the four edges of this block
-        // Top edge (horizontal, at y = by)
-        this.sidewalks.push({ x1: bx, y1: by, x2: bx + bw, y2: by });
-        // Bottom edge
-        this.sidewalks.push({ x1: bx, y1: by + bh, x2: bx + bw, y2: by + bh });
-        // Left edge
-        this.sidewalks.push({ x1: bx, y1: by, x2: bx, y2: by + bh });
-        // Right edge
-        this.sidewalks.push({ x1: bx + bw, y1: by, x2: bx + bw, y2: by + bh });
+        // Four sidewalk edges
+        // We'll also store them indexed by block for path generation
+        const edges = [
+          { edge: 'top',    x1: bx, y1: by,     x2: bx + bw, y2: by },       // top
+          { edge: 'right',  x1: bx + bw, y1: by,     x2: bx + bw, y2: by + bh }, // right
+          { edge: 'bottom', x1: bx, y1: by + bh, x2: bx + bw, y2: by + bh }, // bottom
+          { edge: 'left',   x1: bx, y1: by,     x2: bx, y2: by + bh },       // left
+        ];
+
+        for (const e of edges) {
+          this.sidewalks.push({ x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2 });
+        }
+
+        // ── Generate perimeter waypoint path for this block (clockwise loop) ──
+        const perim = [];
+        // Walk each edge, adding waypoints at STEP intervals
+        for (const e of edges) {
+          const dx = e.x2 - e.x1;
+          const dy = e.y2 - e.y1;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          if (len < 1) continue;
+          const nx = dx / len;
+          const ny = dy / len;
+          const count = Math.floor(len / STEP);
+          const actualCount = (e.edge === edges[edges.length - 1].edge) ? count : count; // don't duplicate corners
+          for (let i = 0; i <= count; i++) {
+            // Skip the last point of each edge except the last edge (avoid duplicate corners)
+            if (i === count && e.edge !== edges[edges.length - 1].edge) continue;
+            const px = e.x1 + nx * i * STEP;
+            const py = e.y1 + ny * i * STEP;
+            perim.push({ x: px, y: py, edge: e.edge });
+            this.waypoints.push({ x: px, y: py, type: 'sidewalk', block: `${ri}_${ci}`, edge: e.edge });
+          }
+        }
+        this.blockPaths.push({ blockId: `${ri}_${ci}`, path: perim, x: bx, y: by, w: bw, h: bh });
       }
     }
 
     // ── Generate crosswalks at intersections ──
-    // A crosswalk is a short strip crossing the road, placed at each intersection.
     for (const hc of hCenters) {
       for (const vc of vCenters) {
-        // Horizontal crosswalk (goes across the vertical road)
         this.crosswalks.push({
-          x: vc - RW * 0.25,
-          y: hc - RW * 0.15,
-          w: RW * 0.5,
-          h: RW * 0.3,
+          x: vc - RW * 0.25, y: hc - RW * 0.15, w: RW * 0.5, h: RW * 0.3,
         });
-        // Vertical crosswalk (goes across the horizontal road)
         this.crosswalks.push({
-          x: vc - RW * 0.15,
-          y: hc - RW * 0.25,
-          w: RW * 0.3,
-          h: RW * 0.5,
-        });
-      }
-    }
-
-    // ── Generate waypoints along sidewalks every ~12px ──
-    const STEP = 12;
-    for (const sw of this.sidewalks) {
-      const dx = sw.x2 - sw.x1;
-      const dy = sw.y2 - sw.y1;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len < 1) continue;
-      const nx = dx / len;
-      const ny = dy / len;
-      const count = Math.floor(len / STEP);
-      for (let i = 0; i <= count; i++) {
-        this.waypoints.push({
-          x: sw.x1 + nx * i * STEP,
-          y: sw.y1 + ny * i * STEP,
-          type: 'sidewalk',
+          x: vc - RW * 0.15, y: hc - RW * 0.25, w: RW * 0.3, h: RW * 0.5,
         });
       }
     }
   }
 
-  /** Generate a random cyclic path for a citizen */
-  generatePath(length = 5) {
-    if (this.waypoints.length === 0) return [];
+  /**
+   * Generate a path that walks the perimeter of a random block (clockwise loop).
+   * This ensures citizens actually walk along the sidewalk edges, turning at corners,
+   * not cutting across buildings or roads.
+   */
+  generatePath() {
+    if (this.blockPaths.length === 0) return [];
+
+    const block = this.blockPaths[Math.floor(Math.random() * this.blockPaths.length)];
+    const perim = block.path;
+    if (perim.length < 4) return [];
+
+    // Pick a random starting position on the perimeter
+    let startIdx = Math.floor(Math.random() * perim.length);
+
+    // Build a cyclic path starting from startIdx, going clockwise
     const path = [];
-    const used = new Set();
-    let idx = Math.floor(Math.random() * this.waypoints.length);
-    for (let i = 0; i < length; i++) {
-      path.push({ ...this.waypoints[idx] });
-      used.add(idx);
-      const wp = this.waypoints[idx];
-      let best = -1;
-      let bestDist = Infinity;
-      for (let j = 0; j < this.waypoints.length; j++) {
-        if (used.has(j)) continue;
-        const d = Math.sqrt(
-          (this.waypoints[j].x - wp.x) ** 2 +
-          (this.waypoints[j].y - wp.y) ** 2
-        );
-        // Prefer waypoints 15-100px away (different edges of the block)
-        if (d > 15 && d < 100 && d < bestDist) {
-          bestDist = d;
-          best = j;
-        }
-      }
-      if (best < 0) break;
-      idx = best;
-    }
-    if (path.length < 2) {
-      // Fallback
-      path.push({ ...this.waypoints[Math.floor(Math.random() * this.waypoints.length)] });
+    // Walk ~60-100% of the perimeter (never the full loop)
+    const walkLen = Math.floor(perim.length * (0.6 + Math.random() * 0.35));
+    for (let i = 0; i < walkLen; i++) {
+      const idx = (startIdx + i) % perim.length;
+      path.push({ x: perim[idx].x, y: perim[idx].y });
     }
     return path;
   }
 
   // ─── RENDERING ───
-
   render(ctx) {
     const W = CONFIG.CANVAS_WIDTH;
     const H = CONFIG.CANVAS_HEIGHT;
     const RW = CONFIG.ROAD_WIDTH;
     const HW = RW / 2;
 
-    // Background
     ctx.fillStyle = CONFIG.BG_COLOR;
     ctx.fillRect(0, 0, W, H);
 
-    // Roads (draw as wide rectangles centered on road centerlines)
+    // Roads
     ctx.fillStyle = CONFIG.ROAD_COLOR;
     for (const seg of this._roadSegments) {
       if (seg.horizontal) {
@@ -204,7 +181,7 @@ export class City {
     }
     ctx.setLineDash([]);
 
-    // Sidewalk strips (drawn as thin lines along building edges)
+    // Sidewalk strips
     ctx.strokeStyle = CONFIG.SIDEWALK_COLOR;
     ctx.lineWidth = CONFIG.SIDEWALK_WIDTH;
     ctx.lineCap = 'butt';
@@ -235,7 +212,6 @@ export class City {
     ctx.lineWidth = 1;
     ctx.strokeRect(b.x, b.y, b.w, b.h);
 
-    // Windows
     const winSize = 5;
     const gap = 8;
     for (let wx = b.x + 8; wx < b.x + b.w - 6; wx += gap + winSize) {
@@ -246,7 +222,6 @@ export class City {
       }
     }
 
-    // Subtle glow at top
     const grad = ctx.createLinearGradient(b.x, b.y, b.x, b.y + 40);
     grad.addColorStop(0, CONFIG.BUILDING_GLOW);
     grad.addColorStop(1, 'rgba(0,0,0,0)');

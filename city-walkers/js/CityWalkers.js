@@ -49,9 +49,11 @@ export class CityWalkers {
   _spawnPopulation(count) {
     this.citizens = [];
     for (let i = 0; i < count; i++) {
-      const pos = this.city.randomSidewalkPos();
-      const path = this.city.generatePath(4 + Math.floor(Math.random() * 4));
-      this.citizens.push(new Citizen(pos.x, pos.y, path));
+      const path = this.city.generatePath();
+      // Spawn directly at path starting point so citizen starts on its route
+      const sx = path.length > 0 ? path[0].x : this.city.randomSidewalkPos().x;
+      const sy = path.length > 0 ? path[0].y : this.city.randomSidewalkPos().y;
+      this.citizens.push(new Citizen(sx, sy, path));
     }
   }
 
@@ -83,9 +85,10 @@ export class CityWalkers {
       const target = parseInt(e.target.value);
       $('populationVal').textContent = target;
       while (this.citizens.length < target) {
-        const pos = this.city.randomSidewalkPos();
-        const path = this.city.generatePath(4 + Math.floor(Math.random() * 4));
-        this.citizens.push(new Citizen(pos.x, pos.y, path));
+        const path = this.city.generatePath();
+        const sx = path.length > 0 ? path[0].x : this.city.randomSidewalkPos().x;
+        const sy = path.length > 0 ? path[0].y : this.city.randomSidewalkPos().y;
+        this.citizens.push(new Citizen(sx, sy, path));
       }
       while (this.citizens.length > target) {
         this.citizens.pop();
@@ -140,6 +143,14 @@ export class CityWalkers {
     // Update citizens
     const all = this.citizens;
     for (const c of all) {
+      // If path complete, give them a new one
+      if (c.pathComplete) {
+        c.path = this.city.generatePath();
+        c.pathIndex = 0;
+        // Re-seed random offset for the new path
+        c.offX = (Math.random() - 0.5) * CONFIG.PATH_JITTER * c.personality;
+        c.offY = (Math.random() - 0.5) * CONFIG.PATH_JITTER * c.personality;
+      }
       const nearby = c.getNearby(all);
       c.steer(this.cohesionWeight, this.separationWeight, this.alignmentWeight, nearby);
       c.move(dt);
@@ -160,8 +171,8 @@ export class CityWalkers {
     else if (c.y > CONFIG.CANVAS_HEIGHT + margin) { c.y = -margin; wrapped = true; }
 
     if (wrapped) {
-      // Give them a new path
-      c.path = this.city.generatePath(4 + Math.floor(Math.random() * 4));
+      // Give them a proper perimeter path for the new area
+      c.path = this.city.generatePath();
       c.pathIndex = 0;
     }
   }
