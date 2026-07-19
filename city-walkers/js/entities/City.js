@@ -75,10 +75,10 @@ export class City {
         // Four sidewalk edges
         // We'll also store them indexed by block for path generation
         const edges = [
-          { edge: 'top',    x1: bx, y1: by,     x2: bx + bw, y2: by },       // top
-          { edge: 'right',  x1: bx + bw, y1: by,     x2: bx + bw, y2: by + bh }, // right
-          { edge: 'bottom', x1: bx, y1: by + bh, x2: bx + bw, y2: by + bh }, // bottom
-          { edge: 'left',   x1: bx, y1: by,     x2: bx, y2: by + bh },       // left
+          { edge: 'top',    x1: bx, y1: by,     x2: bx + bw, y2: by },       // → rightward
+          { edge: 'right',  x1: bx + bw, y1: by,     x2: bx + bw, y2: by + bh }, // ↓ downward
+          { edge: 'bottom', x1: bx + bw, y1: by + bh, x2: bx, y2: by + bh }, // → but LEFTward ← FIX
+          { edge: 'left',   x1: bx, y1: by + bh, x2: bx, y2: by },       // ↓ but UPward   ↑ FIX
         ];
 
         for (const e of edges) {

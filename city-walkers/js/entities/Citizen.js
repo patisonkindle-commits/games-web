@@ -11,23 +11,21 @@ export class Citizen {
     this.vx = 0;
     this.vy = 0;
 
-    this.path = path || [];      // array of {x, y} waypoints
-    this.pathIndex = 0;          // current target waypoint
+    this.path = path || [];
+    this.pathIndex = 0;
     this.maxSpeed = CONFIG.WALKER_SPEED * (0.8 + Math.random() * 0.4);
     this.radius = CONFIG.CITIZEN_RADIUS;
 
-    // Personal style
-    this.hue = 160 + Math.random() * 40; // teal range
     this.bodyColor = CONFIG.CITIZEN_BODY;
     this.headColor = CONFIG.CITIZEN_HEAD;
     this.walkCycle = Math.random() * Math.PI * 2;
-    this.personality = 0.7 + Math.random() * 0.6; // affects path adherence
+    this.personality = 0.7 + Math.random() * 0.6;
 
-    // Random offset for organic feel
-    this.offX = (Math.random() - 0.5) * CONFIG.PATH_JITTER;
-    this.offY = (Math.random() - 0.5) * CONFIG.PATH_JITTER;
+    // Slight random offset for organic feel — subtle so it stays ON sidewalk
+    this.offX = (Math.random() - 0.5) * 1.5;
+    this.offY = (Math.random() - 0.5) * 1.5;
 
-    // Start velocity along path direction
+    // Initialize velocity along first path segment
     if (this.path.length >= 2) {
       const dx = this.path[1].x - this.path[0].x;
       const dy = this.path[1].y - this.path[0].y;
@@ -40,58 +38,64 @@ export class Citizen {
     }
   }
 
-  /** Current target waypoint */
   get target() {
     if (this.path.length === 0) return null;
-    if (this.pathIndex >= this.path.length) return null; // path complete
+    if (this.pathIndex >= this.path.length) return null;
     return this.path[this.pathIndex];
   }
 
-  /** Distance to another citizen */
+  get pathComplete() {
+    return this.path.length === 0 || this.pathIndex >= this.path.length;
+  }
+
   distTo(other) {
     const dx = other.x - this.x;
     const dy = other.y - this.y;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  /** Signal that path is complete — needs a new path */
-  get pathComplete() {
-    return this.path.length === 0 || this.pathIndex >= this.path.length;
-  }
-
-  /** Steer toward current waypoint (path following) */
+  /** Steer toward current waypoint (path following).
+   *  When no target, return a damping force to slow the citizen — prevents drift
+   *  between path regeneration frames.
+   */
   _pathFollow() {
     const t = this.target;
-    if (!t) return [0, 0];
+    if (!t) {
+      // Damping: slow down to stop instead of drifting
+      // This prevents citizen from wandering off sidewalk between paths
+      const damping = 3.0;
+      return [-this.vx * damping, -this.vy * damping];
+    }
 
-    const dx = t.x + this.offX - this.x;
-    const dy = t.y + this.offY - this.y;
+    const dx = (t.x + this.offX) - this.x;
+    const dy = (t.y + this.offY) - this.y;
     const d = Math.sqrt(dx * dx + dy * dy);
 
     // Check if reached waypoint
     if (d < CONFIG.WAYPOINT_REACH_DIST) {
       this.pathIndex++;
-      // Regenerate offset for next segment
-      this.offX = (Math.random() - 0.5) * CONFIG.PATH_JITTER * this.personality;
-      this.offY = (Math.random() - 0.5) * CONFIG.PATH_JITTER * this.personality;
       return this._pathFollow(); // immediately steer to next
     }
 
-    // Seek toward target
+    // Seek toward target (standard arrive behavior)
+    // Reduce speed as we get close to prevent oscillation
+    let desiredSpeed = this.maxSpeed;
+    const slowRadius = 30;
+    if (d < slowRadius) {
+      desiredSpeed = this.maxSpeed * (d / slowRadius);
+      if (desiredSpeed < 15) desiredSpeed = 15;
+    }
+
     return [
-      (dx / d) * this.maxSpeed - this.vx,
-      (dy / d) * this.maxSpeed - this.vy
+      (dx / d) * desiredSpeed - this.vx,
+      (dy / d) * desiredSpeed - this.vy
     ];
   }
 
-  /** Cohesion: steer toward center of nearby citizens */
   _cohesion(nearby) {
     if (nearby.length === 0) return [0, 0];
     let cx = 0, cy = 0;
-    for (const c of nearby) {
-      cx += c.x;
-      cy += c.y;
-    }
+    for (const c of nearby) { cx += c.x; cy += c.y; }
     cx /= nearby.length;
     cy /= nearby.length;
     const dx = cx - this.x;
@@ -104,7 +108,6 @@ export class Citizen {
     ];
   }
 
-  /** Separation: avoid crowding */
   _separation(nearby) {
     let fx = 0, fy = 0;
     for (const c of nearby) {
@@ -125,7 +128,6 @@ export class Citizen {
     ];
   }
 
-  /** Alignment: match velocity with neighbors */
   _alignment(nearby) {
     if (nearby.length === 0) return [0, 0];
     let avx = 0, avy = 0;
@@ -143,7 +145,6 @@ export class Citizen {
     ];
   }
 
-  /** Apply steering force */
   applyForce(fx, fy, dt) {
     const fMag = Math.sqrt(fx * fx + fy * fy);
     const maxF = CONFIG.MAX_FORCE;
@@ -158,13 +159,12 @@ export class Citizen {
       this.vx = (this.vx / s) * this.maxSpeed;
       this.vy = (this.vy / s) * this.maxSpeed;
     }
-    if (s < 0.5) {
-      this.vx += (Math.random() - 0.5) * 8;
-      this.vy += (Math.random() - 0.5) * 8;
+    if (s < 0.5 && !this.pathComplete) {
+      this.vx += (Math.random() - 0.5) * 4;
+      this.vy += (Math.random() - 0.5) * 4;
     }
   }
 
-  /** Get nearby citizens (within perception radius) */
   getNearby(allCitizens) {
     const nearby = [];
     for (const c of allCitizens) {
@@ -180,19 +180,19 @@ export class Citizen {
     this.walkCycle += dt * 6;
   }
 
-  /** Full steering update from game */
   steer(cohesionW, separationW, alignmentW, nearby) {
     const [pfx, pfy] = this._pathFollow();
     const [cx, cy] = this._cohesion(nearby);
     const [sx, sy] = this._separation(nearby);
     const [ax, ay] = this._alignment(nearby);
 
+    // Path following is dominant: keep citizens on sidewalk
     this.applyForce(
-      pfx * 3.0 +          // path following is primary (keep on sidewalk!)
+      pfx * 5.0 +   // strong path force
       cx * cohesionW +
       sx * separationW +
       ax * alignmentW,
-      pfy * 3.0 +
+      pfy * 5.0 +
       cy * cohesionW +
       sy * separationW +
       ay * alignmentW,
@@ -200,7 +200,6 @@ export class Citizen {
     );
   }
 
-  /** Move by velocity */
   move(dt) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
@@ -209,18 +208,16 @@ export class Citizen {
   render(ctx) {
     const angle = Math.atan2(this.vy, this.vx);
     const r = this.radius;
-    const bob = Math.sin(this.walkCycle) * 0.8; // subtle bounce
+    const bob = Math.sin(this.walkCycle) * 0.8;
 
     ctx.save();
     ctx.translate(this.x, this.y + bob);
 
-    // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.beginPath();
     ctx.ellipse(0, r * 0.6, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body (circle)
     ctx.fillStyle = this.bodyColor;
     ctx.shadowColor = this.bodyColor;
     ctx.shadowBlur = 4;
@@ -229,7 +226,6 @@ export class Citizen {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Head direction indicator (smaller circle in direction of travel)
     ctx.fillStyle = this.headColor;
     const headX = Math.cos(angle) * r * 0.6;
     const headY = Math.sin(angle) * r * 0.6;
@@ -237,26 +233,18 @@ export class Citizen {
     ctx.arc(headX, headY, r * 0.35, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eyes (two tiny dots on head)
     const perpAngle = angle + Math.PI / 2;
     const eyeOff = r * 0.15;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(
-      headX + Math.cos(angle) * 2 + Math.cos(perpAngle) * eyeOff,
-      headY + Math.sin(angle) * 2 + Math.sin(perpAngle) * eyeOff,
-      0.8, 0, Math.PI * 2
-    );
+    ctx.arc(headX + Math.cos(angle) * 2 + Math.cos(perpAngle) * eyeOff,
+            headY + Math.sin(angle) * 2 + Math.sin(perpAngle) * eyeOff, 0.8, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(
-      headX + Math.cos(angle) * 2 - Math.cos(perpAngle) * eyeOff,
-      headY + Math.sin(angle) * 2 - Math.sin(perpAngle) * eyeOff,
-      0.8, 0, Math.PI * 2
-    );
+    ctx.arc(headX + Math.cos(angle) * 2 - Math.cos(perpAngle) * eyeOff,
+            headY + Math.sin(angle) * 2 - Math.sin(perpAngle) * eyeOff, 0.8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Legs (two tiny lines)
     const legSwing = Math.sin(this.walkCycle) * 3;
     ctx.strokeStyle = this.bodyColor;
     ctx.lineWidth = 1.2;
