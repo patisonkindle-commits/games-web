@@ -130,18 +130,42 @@ export class City {
    */
   generatePath() {
     if (this.blockPaths.length === 0) return [];
+    return this._buildPathFromBlock(this.blockPaths[Math.floor(Math.random() * this.blockPaths.length)]);
+  }
 
-    const block = this.blockPaths[Math.floor(Math.random() * this.blockPaths.length)];
+  /**
+   * Generate a path on the NEAREST block to a given position.
+   * This is critical — when a citizen finishes its path and needs a new one,
+   * we must give them a path on a nearby block, NOT a random one.
+   * Otherwise the citizen walks diagonally across the city to reach the new block.
+   */
+  generatePathNear(x, y) {
+    if (this.blockPaths.length === 0) return [];
+
+    let nearest = this.blockPaths[0];
+    let nearDist = Infinity;
+    for (const bp of this.blockPaths) {
+      const cx = bp.x + bp.w / 2;
+      const cy = bp.y + bp.h / 2;
+      const dx = cx - x;
+      const dy = cy - y;
+      const d = dx * dx + dy * dy;
+      if (d < nearDist) {
+        nearDist = d;
+        nearest = bp;
+      }
+    }
+    return this._buildPathFromBlock(nearest);
+  }
+
+  /** Build a path walking ~60–95% of a block's perimeter from a random start point */
+  _buildPathFromBlock(block) {
     const perim = block.path;
     if (perim.length < 4) return [];
 
-    // Pick a random starting position on the perimeter
-    let startIdx = Math.floor(Math.random() * perim.length);
-
-    // Build a cyclic path starting from startIdx, going clockwise
-    const path = [];
-    // Walk ~60-100% of the perimeter (never the full loop)
+    const startIdx = Math.floor(Math.random() * perim.length);
     const walkLen = Math.floor(perim.length * (0.6 + Math.random() * 0.35));
+    const path = [];
     for (let i = 0; i < walkLen; i++) {
       const idx = (startIdx + i) % perim.length;
       path.push({ x: perim[idx].x, y: perim[idx].y });

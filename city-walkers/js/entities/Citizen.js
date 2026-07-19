@@ -188,7 +188,7 @@ export class Citizen {
 
     // Path following is dominant: keep citizens on sidewalk
     this.applyForce(
-      pfx * 5.0 +   // strong path force
+      pfx * 5.0 +
       cx * cohesionW +
       sx * separationW +
       ax * alignmentW,
@@ -196,7 +196,7 @@ export class Citizen {
       cy * cohesionW +
       sy * separationW +
       ay * alignmentW,
-      1/60
+      CONFIG.DT
     );
   }
 

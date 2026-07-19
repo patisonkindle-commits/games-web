@@ -25,7 +25,10 @@ export const CONFIG = {
 
   // Path following
   WAYPOINT_REACH_DIST: 6,
-  PATH_JITTER: 0.3,       // how much walkers deviate from perfect path (organic feel)
+  PATH_JITTER: 0.3,
+
+  // Fixed timestep reference for force application
+  DT: 1/60,
 
   // Flocking weights (default)
   COHESION: 0.5,

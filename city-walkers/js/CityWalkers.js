@@ -143,9 +143,9 @@ export class CityWalkers {
     // Update citizens
     const all = this.citizens;
     for (const c of all) {
-      // If path complete, give them a new one
+      // If path complete, give them a new one on their nearest block
       if (c.pathComplete) {
-        c.path = this.city.generatePath();
+        c.path = this.city.generatePathNear(c.x, c.y);
         c.pathIndex = 0;
         // Re-seed random offset for the new path
         c.offX = (Math.random() - 0.5) * CONFIG.PATH_JITTER * c.personality;
@@ -171,8 +171,8 @@ export class CityWalkers {
     else if (c.y > CONFIG.CANVAS_HEIGHT + margin) { c.y = -margin; wrapped = true; }
 
     if (wrapped) {
-      // Give them a proper perimeter path for the new area
-      c.path = this.city.generatePath();
+      // Give them a path on a block near the new position
+      c.path = this.city.generatePathNear(c.x, c.y);
       c.pathIndex = 0;
     }
   }
