@@ -205,6 +205,30 @@ export class Citizen {
     this.y += this.vy * dt;
   }
 
+  renderPath(ctx) {
+    if (!this.path || this.path.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = CONFIG.PATH_LINE_COLOR;
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(this.path[0].x, this.path[0].y);
+    for (let i = 1; i < this.path.length; i++) {
+      ctx.lineTo(this.path[i].x, this.path[i].y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw dots at waypoints
+    ctx.fillStyle = CONFIG.PATH_DOT_COLOR;
+    for (const wp of this.path) {
+      ctx.beginPath();
+      ctx.arc(wp.x, wp.y, CONFIG.PATH_DOT_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   render(ctx) {
     const angle = Math.atan2(this.vy, this.vx);
     const r = this.radius;

@@ -34,6 +34,9 @@ export class CityWalkers {
       });
     }
 
+    // Path visualization toggle
+    this.showPaths = false;
+
     // FPS
     this.fps = 0;
     this.frameCount = 0;
@@ -98,9 +101,18 @@ export class CityWalkers {
       this._spawnPopulation(parseInt($('populationSlider').value));
     });
 
+    $('pathToggleBtn').addEventListener('click', () => {
+      this.showPaths = !this.showPaths;
+      $('pathToggleBtn').textContent = this.showPaths ? '⊞ Paths ON' : '⊟ Paths OFF';
+      $('pathToggleBtn').className = this.showPaths ? 'primary' : '';
+    });
+
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
         window.location.href = '../';
+      }
+      if (e.code === 'KeyP') {
+        $('pathToggleBtn').click();
       }
     });
   }
@@ -198,6 +210,13 @@ export class CityWalkers {
       ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
+    }
+
+    // Path visualization (behind citizens)
+    if (this.showPaths) {
+      for (const c of this.citizens) {
+        c.renderPath(ctx);
+      }
     }
 
     // Citizens

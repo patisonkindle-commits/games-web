@@ -51,4 +51,9 @@ export const CONFIG = {
 
   FONT: '12px monospace',
   FONT_SMALL: '10px monospace',
+
+  // Path visualization
+  PATH_LINE_COLOR: 'rgba(78,205,196,0.25)',
+  PATH_DOT_COLOR: 'rgba(78,205,196,0.5)',
+  PATH_DOT_RADIUS: 1.5,
 };
