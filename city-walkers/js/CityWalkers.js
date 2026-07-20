@@ -155,11 +155,9 @@ export class CityWalkers {
     // Update citizens
     const all = this.citizens;
     for (const c of all) {
-      // If path complete, give them a new one on their nearest block
-      if (c.pathComplete) {
-        c.path = this.city.generatePathNear(c.x, c.y);
+      // If path complete, recycle the same block's path (continue looping)
+      if (c.pathComplete && c.path.length > 0) {
         c.pathIndex = 0;
-        // Re-seed random offset for the new path
         c.offX = (Math.random() - 0.5) * CONFIG.PATH_JITTER * c.personality;
         c.offY = (Math.random() - 0.5) * CONFIG.PATH_JITTER * c.personality;
       }
@@ -167,6 +165,15 @@ export class CityWalkers {
       c.steer(this.cohesionWeight, this.separationWeight, this.alignmentWeight, nearby);
       c.move(dt);
       c.update(dt);
+
+      // Pull citizen back to nearest sidewalk if they drift too far
+      if (!this.city.isOnSidewalk(c.x, c.y)) {
+        const snap = this.city.nearestSidewalkPos(c.x, c.y);
+        if (snap) {
+          c.x += (snap.x - c.x) * 0.08;
+          c.y += (snap.y - c.y) * 0.08;
+        }
+      }
 
       // Wrap around edges (teleport to opposite sidewalk)
       this._wrapCitizen(c);

@@ -158,19 +158,59 @@ export class City {
     return this._buildPathFromBlock(nearest);
   }
 
-  /** Build a path walking ~60–95% of a block's perimeter from a random start point */
+  /** Build a full perimeter path from a random start point (looping) */
   _buildPathFromBlock(block) {
     const perim = block.path;
     if (perim.length < 4) return [];
 
     const startIdx = Math.floor(Math.random() * perim.length);
-    const walkLen = Math.floor(perim.length * (0.6 + Math.random() * 0.35));
     const path = [];
-    for (let i = 0; i < walkLen; i++) {
+    for (let i = 0; i < perim.length; i++) {
       const idx = (startIdx + i) % perim.length;
       path.push({ x: perim[idx].x, y: perim[idx].y });
     }
     return path;
+  }
+
+  /**
+   * Check if a point is within sidewalk boundaries of this city
+   */
+  isOnSidewalk(x, y) {
+    const margin = 8;
+    for (const sw of this.sidewalks) {
+      // Approximate: check distance to sidewalk segment
+      const dx = sw.x2 - sw.x1;
+      const dy = sw.y2 - sw.y1;
+      const len2 = dx * dx + dy * dy;
+      if (len2 < 1) continue;
+      const t = Math.max(0, Math.min(1, ((x - sw.x1) * dx + (y - sw.y1) * dy) / len2));
+      const px = sw.x1 + t * dx;
+      const py = sw.y1 + t * dy;
+      const dist2 = (x - px) * (x - px) + (y - py) * (y - py);
+      if (dist2 < margin * margin) return true;
+    }
+    return false;
+  }
+
+  /** Find nearest point on any sidewalk segment */
+  nearestSidewalkPos(x, y) {
+    let best = null;
+    let bestD = Infinity;
+    for (const sw of this.sidewalks) {
+      const dx = sw.x2 - sw.x1;
+      const dy = sw.y2 - sw.y1;
+      const len2 = dx * dx + dy * dy;
+      if (len2 < 1) continue;
+      const t = Math.max(0, Math.min(1, ((x - sw.x1) * dx + (y - sw.y1) * dy) / len2));
+      const px = sw.x1 + t * dx;
+      const py = sw.y1 + t * dy;
+      const d2 = (x - px) * (x - px) + (y - py) * (y - py);
+      if (d2 < bestD) {
+        bestD = d2;
+        best = { x: px, y: py };
+      }
+    }
+    return best || { x, y };
   }
 
   // ─── RENDERING ───
