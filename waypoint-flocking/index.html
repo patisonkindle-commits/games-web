@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flocking Simulation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #16213e;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #ccc;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      border: 2px solid #a78bfa;
+      border-radius: 4px;
+      max-width: 100%;
+      max-height: 80vh;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    .controls-bar {
+      margin-top: 14px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0,0,0,0.4);
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .controls-bar .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #888;
+    }
+    .controls-bar .slider-group label {
+      min-width: 36px;
+      text-align: right;
+      font-weight: bold;
+    }
+    .controls-bar .slider-group .val {
+      min-width: 28px;
+      font-weight: bold;
+    }
+    .controls-bar input[type="range"] {
+      width: 90px;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255,255,255,0.15);
+      border-radius: 2px;
+      outline: none;
+    }
+    .controls-bar input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #a78bfa;
+      border: 2px solid #7c5bfa;
+      cursor: pointer;
+    }
+    .controls-bar input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #a78bfa;
+      border: 2px solid #7c5bfa;
+      cursor: pointer;
+    }
+    .controls-bar .sep input[type="range"] { background: rgba(255,107,107,0.3); }
+    .controls-bar .sep input[type="range"]::-webkit-slider-thumb { background: #ff6b6b; border-color: #ff4444; }
+    .controls-bar .sep .val { color: #ff6b6b; }
+    .controls-bar .coh input[type="range"] { background: rgba(78,205,196,0.3); }
+    .controls-bar .coh input[type="range"]::-webkit-slider-thumb { background: #4ecdc4; border-color: #2ebdb4; }
+    .controls-bar .coh .val { color: #4ecdc4; }
+    .controls-bar .ali input[type="range"] { background: rgba(255,217,61,0.3); }
+    .controls-bar .ali input[type="range"]::-webkit-slider-thumb { background: #ffd93d; border-color: #e0c020; }
+    .controls-bar .ali .val { color: #ffd93d; }
+    .controls-bar .avo input[type="range"] { background: rgba(167,139,250,0.3); }
+    .controls-bar .avo input[type="range"]::-webkit-slider-thumb { background: #a78bfa; border-color: #8b6ff0; }
+    .controls-bar .avo .val { color: #a78bfa; }
+    .controls-bar .wp input[type="range"] { background: rgba(255,204,68,0.3); }
+    .controls-bar .wp input[type="range"]::-webkit-slider-thumb { background: #ffcc44; border-color: #e0b030; }
+    .controls-bar .wp .val { color: #ffcc44; }
+    .controls-bar .btn-group { display: flex; gap: 8px; }
+    .controls-bar button {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #ccc;
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+    .controls-bar button:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .controls-bar button.primary { background: rgba(167,139,250,0.2); border-color: #a78bfa; color: #a78bfa; }
+    .controls-bar button.primary:hover { background: rgba(167,139,250,0.35); }
+    .hint {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: #555;
+      background: rgba(0,0,0,0.4);
+      padding: 4px 10px;
+      border-radius: 4px;
+      pointer-events: none;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .hint.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="controls-bar">
+    <div class="slider-group coh">
+      <label>COH</label>
+      <input type="range" id="cohesionSlider" min="0" max="200" value="100">
+      <span class="val" id="cohesionVal">1.00</span>
+    </div>
+    <div class="slider-group sep">
+      <label>SEP</label>
+      <input type="range" id="separationSlider" min="0" max="200" value="150">
+      <span class="val" id="separationVal">1.50</span>
+    </div>
+    <div class="slider-group ali">
+      <label>ALI</label>
+      <input type="range" id="alignmentSlider" min="0" max="200" value="100">
+      <span class="val" id="alignmentVal">1.00</span>
+    </div>
+    <div class="slider-group avo">
+      <label>AVOID</label>
+      <input type="range" id="avoidSlider" min="0" max="500" value="250">
+      <span class="val" id="avoidVal">2.50</span>
+    </div>
+    <div class="slider-group wp">
+      <label>WPT</label>
+      <input type="range" id="waypointSlider" min="0" max="300" value="0">
+      <span class="val" id="waypointVal">0</span>
+    </div>
+    <div class="btn-group">
+      <button id="resetBtn" class="primary">↻ Reset Boids</button>
+      <button id="clearObstaclesBtn">✕ Clear Obstacles</button>
+      <button id="addBoidBtn">+ Boid</button>
+      <button id="removeBoidBtn">− Boid</button>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Left-click:obstacle · Right-click:remove · W:waypoint mode · X:clear waypoints</div>
+
+<script>
+// =====================================================
+//  FLOCKING SIMULATION  (self-contained single file)
+// =====================================================
+
+const CONFIG = {
+  CANVAS_WIDTH: 1024,
+  CANVAS_HEIGHT: 700,
+  BG_COLOR: '#0f0f1a',
+  BOID_COLOR: '#a78bfa',
+  BOID_ACCENT: '#7c5bfa',
+  OBSTACLE_COLOR: '#ff6b6b',
+  OBSTACLE_INNER: 'rgba(255,107,107,0.15)',
+  NEIGHBOR_LINE: 'rgba(167,139,250,0.06)',
+  TEXT_COLOR: '#e0e0e0',
+  HUD_BG: 'rgba(0,0,0,0.5)',
+  BOID_SIZE: 14,
+  BOID_SPEED: 100,
+  BOID_FORCE: 200,
+  BOID_PERCEPTION: 80,
+  BOID_SEPARATION_DIST: 24,
+  COHESION_WEIGHT: 1.0,
+  SEPARATION_WEIGHT: 1.5,
+  ALIGNMENT_WEIGHT: 1.0,
+  OBSTACLE_AVOID_WEIGHT: 2.5,
+  OBSTACLE_RADIUS: 18,
+  OBSTACLE_AVOID_RADIUS: 50,
+  INITIAL_BOID_COUNT: 60,
+  MIN_BOIDS: 5,
+  MAX_BOIDS: 200,
+  FONT: '13px monospace',
+  FONT_SMALL: '11px monospace',
+};
+
+// ─── Boid ───
+class Boid {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = CONFIG.BOID_SPEED * (0.6 + Math.random() * 0.4);
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.size = CONFIG.BOID_SIZE;
+    this.maxSpeed = CONFIG.BOID_SPEED;
+    this.maxForce = CONFIG.BOID_FORCE;
+    this.wpIndex = 0; // which waypoint this boid is heading to
+  }
+  get speed() { return Math.sqrt(this.vx*this.vx+this.vy*this.vy); }
+  distTo(other) { const dx=other.x-this.x, dy=other.y-this.y; return Math.sqrt(dx*dx+dy*dy); }
+  applyForce(fx, fy, dt) {
+    let fMag = Math.sqrt(fx*fx+fy*fy);
+    if (fMag > this.maxForce) { fx=(fx/fMag)*this.maxForce; fy=(fy/fMag)*this.maxForce; }
+    this.vx += fx*dt; this.vy += fy*dt;
+    const s = this.speed;
+    if (s > this.maxSpeed) { this.vx=(this.vx/s)*this.maxSpeed; this.vy=(this.vy/s)*this.maxSpeed; }
+    if (s < 0.1) { this.vx+=(Math.random()-0.5)*10; this.vy+=(Math.random()-0.5)*10; }
+  }
+  update(dt) {
+    this.x+=this.vx*dt; this.y+=this.vy*dt;
+    if (this.x<-20) this.x=CONFIG.CANVAS_WIDTH+20;
+    if (this.x>CONFIG.CANVAS_WIDTH+20) this.x=-20;
+    if (this.y<-20) this.y=CONFIG.CANVAS_HEIGHT+20;
+    if (this.y>CONFIG.CANVAS_HEIGHT+20) this.y=-20;
+  }
+  render(ctx) {
+    const s=this.size/2, angle=Math.atan2(this.vy,this.vx);
+    ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(angle);
+    ctx.shadowColor=CONFIG.BOID_COLOR; ctx.shadowBlur=6;
+    ctx.fillStyle=CONFIG.BOID_COLOR;
+    ctx.beginPath(); ctx.moveTo(s*1.5,0); ctx.lineTo(-s*0.8,-s*0.7); ctx.lineTo(-s*0.5,0); ctx.lineTo(-s*0.8,s*0.7); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle=CONFIG.BOID_ACCENT;
+    ctx.beginPath(); ctx.moveTo(s*0.9,0); ctx.lineTo(-s*0.3,-s*0.35); ctx.lineTo(-s*0.15,0); ctx.lineTo(-s*0.3,s*0.35); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(s*0.6,0,1.5,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ─── Obstacle ───
+class Obstacle {
+  constructor(x,y){this.x=x;this.y=y;this.radius=CONFIG.OBSTACLE_RADIUS;this.avoidRadius=CONFIG.OBSTACLE_AVOID_RADIUS;}
+  contains(px,py){const dx=px-this.x,dy=py-this.y;return Math.sqrt(dx*dx+dy*dy)<this.radius;}
+  render(ctx){
+    ctx.save();
+    const grad=ctx.createRadialGradient(this.x,this.y,this.radius,this.x,this.y,this.avoidRadius);
+    grad.addColorStop(0,'rgba(255,107,107,0.06)');grad.addColorStop(0.5,'rgba(255,107,107,0.02)');grad.addColorStop(1,'rgba(255,107,107,0)');
+    ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(this.x,this.y,this.avoidRadius,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,107,107,0.08)'; ctx.lineWidth=1; ctx.setLineDash([3,6]); ctx.beginPath(); ctx.arc(this.x,this.y,this.avoidRadius,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.shadowColor=CONFIG.OBSTACLE_COLOR; ctx.shadowBlur=12;
+    const grad2=ctx.createRadialGradient(this.x-4,this.y-4,2,this.x,this.y,this.radius);
+    grad2.addColorStop(0,'#ff8a8a');grad2.addColorStop(0.7,CONFIG.OBSTACLE_COLOR);grad2.addColorStop(1,'#cc4444');
+    ctx.fillStyle=grad2; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle=CONFIG.OBSTACLE_INNER; ctx.beginPath(); ctx.arc(this.x-5,this.y-5,this.radius*0.35,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=2; const c=this.radius*0.3;
+    ctx.beginPath(); ctx.moveTo(this.x-c,this.y-c); ctx.lineTo(this.x+c,this.y+c); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(this.x+c,this.y-c); ctx.lineTo(this.x-c,this.y+c); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ─── Game ───
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = CONFIG.CANVAS_WIDTH;
+canvas.height = CONFIG.CANVAS_HEIGHT;
+
+let boids = [];
+let obstacles = [];
+let showNeighbors = false;
+let boidTrails = false;
+let cohesionWeight = CONFIG.COHESION_WEIGHT;
+let separationWeight = CONFIG.SEPARATION_WEIGHT;
+let alignmentWeight = CONFIG.ALIGNMENT_WEIGHT;
+let avoidWeight = CONFIG.OBSTACLE_AVOID_WEIGHT;
+let waypoints = [];
+let waypointWeight = 0;
+let isWaypointMode = false;
+
+// FPS tracking
+let fps = 0, frameCount = 0, fpsTimer = 0;
+
+// Stars
+const stars = [];
+for (let i=0;i<100;i++) stars.push({x:Math.random()*CONFIG.CANVAS_WIDTH,y:Math.random()*CONFIG.CANVAS_HEIGHT,r:0.5+Math.random()*1.5,twinkle:Math.random()*Math.PI*2,speed:0.3+Math.random()*0.5});
+
+function spawnBoids(count) {
+  for (let i=0;i<count;i++) boids.push(new Boid(Math.random()*CONFIG.CANVAS_WIDTH,Math.random()*CONFIG.CANVAS_HEIGHT));
+}
+spawnBoids(CONFIG.INITIAL_BOID_COUNT);
+
+// ─── Steering Behaviors ───
+function waypointSteer(boid) {
+  if (!waypointWeight || !waypoints.length) return [0,0];
+  // find which waypoint this boid is heading to
+  const idx = boid.wpIndex % waypoints.length;
+  const wp = waypoints[idx];
+  const dx = wp.x-boid.x, dy = wp.y-boid.y, d = Math.sqrt(dx*dx+dy*dy);
+  // reached waypoint → advance to next
+  if (d < 15) {
+    boid.wpIndex = (boid.wpIndex + 1) % waypoints.length;
+    return [0,0];
+  }
+  // steer toward it
+  const fx = dx/d*boid.maxSpeed*0.7 - boid.vx;
+  const fy = dy/d*boid.maxSpeed*0.7 - boid.vy;
+  return [fx, fy];
+}
+function cohesion(boid) {
+  let cx=0,cy=0,count=0;
+  for (const other of boids) { if(other===boid)continue; const d=boid.distTo(other); if(d>0&&d<CONFIG.BOID_PERCEPTION){cx+=other.x;cy+=other.y;count++;} }
+  if(!count) return [0,0];
+  cx/=count; cy/=count;
+  const dx=cx-boid.x, dy=cy-boid.y, mag=Math.sqrt(dx*dx+dy*dy);
+  return mag<1 ? [0,0] : [dx/mag*boid.maxSpeed-boid.vx, dy/mag*boid.maxSpeed-boid.vy];
+}
+function separation(boid) {
+  let fx=0,fy=0;
+  for (const other of boids) {
+    if(other===boid)continue;
+    const dx=boid.x-other.x, dy=boid.y-other.y, d=Math.sqrt(dx*dx+dy*dy);
+    if(d>0&&d<CONFIG.BOID_SEPARATION_DIST){const s=(CONFIG.BOID_SEPARATION_DIST-d)/CONFIG.BOID_SEPARATION_DIST; fx+=(dx/d)*s; fy+=(dy/d)*s;}
+  }
+  const mag=Math.sqrt(fx*fx+fy*fy);
+  return mag<0.01 ? [0,0] : [fx/mag*boid.maxSpeed-boid.vx, fy/mag*boid.maxSpeed-boid.vy];
+}
+function alignment(boid) {
+  let avx=0,avy=0,count=0;
+  for (const other of boids) { if(other===boid)continue; const d=boid.distTo(other); if(d>0&&d<CONFIG.BOID_PERCEPTION){avx+=other.vx;avy+=other.vy;count++;} }
+  if(!count) return [0,0];
+  avx/=count; avy/=count;
+  const mag=Math.sqrt(avx*avx+avy*avy);
+  return mag<0.1 ? [0,0] : [avx/mag*boid.maxSpeed-boid.vx, avy/mag*boid.maxSpeed-boid.vy];
+}
+function obstacleAvoidance(boid) {
+  let fx=0,fy=0;
+  for (const obs of obstacles) {
+    const dx=boid.x-obs.x, dy=boid.y-obs.y, d=Math.sqrt(dx*dx+dy*dy), threatDist=obs.avoidRadius+obs.radius;
+    if(d<threatDist&&d>0){const t=1-d/threatDist,s=t*t; fx+=(dx/d)*s; fy+=(dy/d)*s;}
+  }
+  const mag=Math.sqrt(fx*fx+fy*fy);
+  return mag<0.01 ? [0,0] : [fx/mag*boid.maxSpeed-boid.vx, fy/mag*boid.maxSpeed-boid.vy];
+}
+function boundsSteering(boid) {
+  const margin=60;
+  let fx=0,fy=0;
+  if(boid.x<margin) fx=(margin-boid.x)/margin;
+  if(boid.x>CONFIG.CANVAS_WIDTH-margin) fx=-(boid.x-(CONFIG.CANVAS_WIDTH-margin))/margin;
+  if(boid.y<margin) fy=(margin-boid.y)/margin;
+  if(boid.y>CONFIG.CANVAS_HEIGHT-margin) fy=-(boid.y-(CONFIG.CANVAS_HEIGHT-margin))/margin;
+  const mag=Math.sqrt(fx*fx+fy*fy);
+  return mag<0.01 ? [0,0] : [fx/mag*boid.maxSpeed*0.5-boid.vx, fy/mag*boid.maxSpeed*0.5-boid.vy];
+}
+
+// ─── Loops ───
+function update(dt) {
+  for (const star of stars) star.twinkle += dt * star.speed;
+  for (const boid of boids) {
+    const [cohX,cohY]=cohesion(boid);
+    const [sepX,sepY]=separation(boid);
+    const [aliX,aliY]=alignment(boid);
+    const [avoX,avoY]=obstacleAvoidance(boid);
+    const [bndX,bndY]=boundsSteering(boid);
+    const [wpX,wpY]=waypointSteer(boid);
+    boid.applyForce(
+      cohX*cohesionWeight+sepX*separationWeight+aliX*alignmentWeight+avoX*avoidWeight+bndX+wpX,
+      cohY*cohesionWeight+sepY*separationWeight+aliY*alignmentWeight+avoY*avoidWeight+bndY+wpY,
+      dt
+    );
+    boid.update(dt);
+  }
+}
+
+function render() {
+  const w=CONFIG.CANVAS_WIDTH, h=CONFIG.CANVAS_HEIGHT;
+  ctx.fillStyle=CONFIG.BG_COLOR; ctx.fillRect(0,0,w,h);
+  // Stars
+  for (const star of stars) {
+    const alpha=0.3+Math.sin(star.twinkle)*0.2;
+    ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle='#c0c0e0';
+    ctx.beginPath(); ctx.arc(star.x,star.y,star.r,0,Math.PI*2); ctx.fill(); ctx.restore();
+  }
+  // Waypoints
+  for (let i=0;i<waypoints.length;i++) {
+    const wp=waypoints[i];
+    ctx.save();
+    ctx.fillStyle='#ffcc44';
+    ctx.beginPath(); ctx.arc(wp.x,wp.y,6,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,204,68,0.25)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(wp.x,wp.y,12,0,Math.PI*2); ctx.stroke();
+    // number
+    ctx.fillStyle='#0f0f1a'; ctx.font='bold 8px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(i+1, wp.x, wp.y+0.5);
+    ctx.restore();
+  }
+  if (waypoints.length>1) {
+    ctx.strokeStyle='rgba(255,204,68,0.15)'; ctx.lineWidth=1.5;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(waypoints[0].x,waypoints[0].y);
+    for (let i=1;i<waypoints.length;i++) ctx.lineTo(waypoints[i].x,waypoints[i].y);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  // Obstacles
+  for (const obs of obstacles) obs.render(ctx);
+  // Neighbor lines
+  if (showNeighbors) {
+    for (const boid of boids) {
+      for (const other of boids) {
+        if(other===boid)continue;
+        if(boid.distTo(other)<CONFIG.BOID_PERCEPTION) {
+          ctx.save(); ctx.strokeStyle=CONFIG.NEIGHBOR_LINE; ctx.lineWidth=0.5;
+          ctx.beginPath(); ctx.moveTo(boid.x,boid.y); ctx.lineTo(other.x,other.y); ctx.stroke(); ctx.restore();
+        }
+      }
+    }
+  }
+  // Boids
+  for (const boid of boids) boid.render(ctx);
+  // HUD
+  ctx.fillStyle=CONFIG.HUD_BG; ctx.fillRect(0,0,w,48);
+  ctx.font=CONFIG.FONT; ctx.fillStyle=CONFIG.TEXT_COLOR; ctx.textAlign='left';
+  ctx.fillText(`Flocking · ${boids.length} boids · ${obstacles.length} obstacles · ${fps} fps`,14,20);
+  ctx.textAlign='right';
+  ctx.fillText('N:Neighbors | T:Trails | Click:Obstacle | R-Click:Remove',w-14,20);
+  ctx.textAlign='left'; ctx.font=CONFIG.FONT_SMALL;
+  ctx.fillStyle='#4ecdc4'; ctx.fillText(`COH ${cohesionWeight.toFixed(2)}`,14,38);
+  ctx.fillStyle='#ff6b6b'; ctx.fillText(`SEP ${separationWeight.toFixed(2)}`,114,38);
+  ctx.fillStyle='#ffd93d'; ctx.fillText(`ALI ${alignmentWeight.toFixed(2)}`,214,38);
+  ctx.fillStyle='#a78bfa'; ctx.fillText(`AVO ${avoidWeight.toFixed(2)}`,314,38);
+  ctx.fillStyle='#ffcc44'; ctx.fillText(`WPT ${waypointWeight.toFixed(1)}`,414,38);
+  // Vignette
+  const vig=ctx.createRadialGradient(w/2,h/2,h*0.3,w/2,h/2,h*0.7);
+  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(0,0,0,0.3)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,w,h);
+}
+
+let running = true;
+function loop(time) {
+  const rawDt=(time-lastTime)/1000; const dt=Math.min(rawDt,0.05); lastTime=time;
+  update(dt); render();
+  frameCount++; fpsTimer+=rawDt;
+  if (fpsTimer>=1) { fps=Math.round(frameCount/fpsTimer); frameCount=0; fpsTimer=0; }
+  if (running) requestAnimationFrame(loop);
+}
+let lastTime = performance.now();
+requestAnimationFrame(loop);
+
+// ─── UI Bindings ───
+const s = id => document.getElementById(id);
+s('cohesionSlider').addEventListener('input', e => { cohesionWeight=parseFloat(e.target.value)/100; s('cohesionVal').textContent=cohesionWeight.toFixed(2); });
+s('separationSlider').addEventListener('input', e => { separationWeight=parseFloat(e.target.value)/100; s('separationVal').textContent=separationWeight.toFixed(2); });
+s('alignmentSlider').addEventListener('input', e => { alignmentWeight=parseFloat(e.target.value)/100; s('alignmentVal').textContent=alignmentWeight.toFixed(2); });
+s('avoidSlider').addEventListener('input', e => { avoidWeight=parseFloat(e.target.value)/100; s('avoidVal').textContent=avoidWeight.toFixed(2); });
+s('waypointSlider').addEventListener('input', e => { waypointWeight=parseFloat(e.target.value)/100; s('waypointVal').textContent=waypointWeight.toFixed(1); });
+s('resetBtn').addEventListener('click', ()=>{ boids=[]; obstacles=[]; spawnBoids(CONFIG.INITIAL_BOID_COUNT); boids.forEach(b=>b.wpIndex=0); });
+s('clearObstaclesBtn').addEventListener('click', ()=>{ obstacles=[]; });
+s('addBoidBtn').addEventListener('click', ()=>{ if(boids.length<CONFIG.MAX_BOIDS) spawnBoids(1); });
+s('removeBoidBtn').addEventListener('click', ()=>{ if(boids.length>CONFIG.MIN_BOIDS) boids.pop(); });
+
+window.addEventListener('keydown', e => {
+  if (e.code==='KeyN') showNeighbors=!showNeighbors;
+  if (e.code==='KeyT') boidTrails=!boidTrails;
+  if (e.code==='KeyW') { isWaypointMode=!isWaypointMode; canvas.style.cursor=isWaypointMode?'cell':'crosshair'; }
+  if (e.code==='KeyX') { waypoints=[]; boids.forEach(b=>b.wpIndex=0); }
+});
+
+// ─── Canvas Input ───
+canvas.addEventListener('mousedown', e => {
+  if (e.button!==0) return;
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+  const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+  if (isWaypointMode) {
+    waypoints.push({x:mx, y:my, weight:1});
+    return;
+  }
+  for (const obs of obstacles) if(obs.contains(mx,my)) return;
+  obstacles.push(new Obstacle(mx,my));
+});
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+  const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+  let nearest=-1, nearDist=Infinity;
+  for (let i=0;i<obstacles.length;i++) {
+    const d=Math.sqrt((obstacles[i].x-mx)**2+(obstacles[i].y-my)**2);
+    if (d<nearDist) { nearDist=d; nearest=i; }
+  }
+  if (nearest>=0 && nearDist<60) obstacles.splice(nearest,1);
+});
+canvas.addEventListener('mouseenter', ()=>{ const h=s('hint'); if(h) h.classList.add('show'); });
+canvas.addEventListener('mouseleave', ()=>{ const h=s('hint'); if(h) h.classList.remove('show'); });
+</script>
+</body>
+</html>

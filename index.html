@@ -373,6 +373,14 @@
     a.card.city .card-thumb .icon-bg { filter: drop-shadow(0 0 20px rgba(78,205,196,0.15)); }
     a.card.city .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
 
+    /* ── Flock + Waypoint Card ── */
+    a.card.wp::before { background: linear-gradient(90deg, #ffcc44, #e0a020); }
+    a.card.wp:hover { box-shadow: 0 12px 48px rgba(255,204,68,0.12); border-color: rgba(255,204,68,0.2); }
+    a.card.wp .card-body h2 { color: #ffcc44; }
+    a.card.wp .card-thumb .deco { width: 90px; height: 90px; background: #ffcc44; top: 10px; left: 20px; }
+    a.card.wp .card-thumb .icon-bg { filter: drop-shadow(0 0 20px rgba(255,204,68,0.15)); }
+    a.card.wp .card-meta .status .dot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+
     /* ── Footer ── */
     footer {
       text-align: center;
@@ -422,7 +430,7 @@
       <div class="badge">🎮 Game Collection</div>
       <h1>Game Demos &amp; Visualizations</h1>
       <p>HTML5 Canvas ports of MonoGame AI demonstrations + algorithm visualizations</p>
-      <div class="count">12 demos · 7 categories</div>
+      <div class="count">13 demos · 7 categories</div>
     </header>
 
     <div class="games">
@@ -559,6 +567,26 @@
           <div class="card-meta">
             <span>🚶 Path-following</span>
             <span>🏘️ City generator</span>
+            <div class="status">
+              <span class="dot"></span>
+              <span class="live">Live</span>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Flock + Waypoint -->
+      <a class="card wp" href="waypoint-flocking/">
+        <div class="card-thumb">
+          <div class="deco"></div>
+          <span class="icon-bg">🐦</span>
+        </div>
+        <div class="card-body">
+          <h2>Flock + Waypoints <span class="tag">NEW</span></h2>
+          <p>Boat boids flock together, chase numbered waypoints in sequence, loop back to start. Adjust COH/SEP/ALI/WPT sliders in real-time.</p>
+          <div class="card-meta">
+            <span>🕹️ 4 sliders</span>
+            <span>🏁 Waypoints</span>
             <div class="status">
               <span class="dot"></span>
               <span class="live">Live</span>
