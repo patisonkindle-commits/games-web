@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>A* Pathfinding — Interactive Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #07070f;
+      --surface: rgba(255,255,255,0.03);
+      --surface-hover: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.08);
+      --text: #e8e8f0;
+      --text-sec: #8888a0;
+      --text-dim: #55556a;
+      --accent: #a78bfa;
+      --accent2: #6ee7b7;
+      --accent3: #f472b6;
+      --cell-bg: rgba(255,255,255,0.015);
+      --cell-wall: rgba(255,255,255,0.12);
+      --cell-start: rgba(110,231,183,0.3);
+      --cell-end: rgba(244,114,182,0.3);
+      --open: rgba(167,139,250,0.15);
+      --open-border: rgba(167,139,250,0.3);
+      --closed: rgba(139,92,246,0.08);
+      --path: rgba(110,231,183,0.5);
+      --path-glow: rgba(110,231,183,0.2);
+      --terrain-normal: rgba(34,197,94,0.15);
+      --terrain-forest: rgba(132,204,22,0.2);
+      --terrain-mountain: rgba(234,179,8,0.2);
+      --terrain-water: rgba(59,130,246,0.2);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 24px 0;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .back-btn:hover { background: var(--surface-hover); color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 24px 60px;
+    }
+
+    header { margin-bottom: 24px; }
+    header .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 100px;
+      background: rgba(167,139,250,0.1);
+      border: 1px solid rgba(167,139,250,0.2);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    header h1 {
+      font-size: clamp(24px, 4vw, 36px);
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    header p { color: var(--text-sec); font-size: 14px; margin-top: 6px; line-height: 1.6; }
+
+    /* Mode tabs */
+    .mode-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .mode-tab {
+      padding: 8px 20px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .mode-tab:hover { background: var(--surface-hover); }
+    .mode-tab.active {
+      background: rgba(167,139,250,0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .demo-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .demo-layout { grid-template-columns: 1fr; } }
+
+    .canvas-wrapper {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .canvas-wrapper canvas {
+      display: block;
+      width: 100%;
+      border-radius: 8px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .canvas-hint {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+      pointer-events: none;
+      white-space: nowrap;
+      transition: opacity 0.3s;
+    }
+
+    .sidebar { display: flex; flex-direction: column; gap: 14px; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .panel h3 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn:hover { background: var(--surface-hover); border-color: rgba(255,255,255,0.15); }
+    .btn.primary { background: rgba(167,139,250,0.2); border-color: var(--accent); color: var(--accent); }
+    .btn.primary:hover { background: rgba(167,139,250,0.3); }
+
+    /* Tool buttons */
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .tool-btn {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-sec);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+      text-align: center;
+    }
+    .tool-btn:hover { background: var(--surface-hover); }
+    .tool-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(167,139,250,0.15); }
+    .tool-btn .emoji { font-size: 14px; display: block; margin-bottom: 2px; }
+
+    /* Stats */
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 12px; color: var(--text-dim); }
+    .stat-value { font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .stat-value.path { color: var(--accent2); }
+    .stat-value.cost { color: #fbbf24; }
+    .stat-value.open { color: var(--accent); }
+    .stat-value.closed { color: var(--text-dim); }
+
+    /* Terrain legend */
+    .legend { display: flex; flex-direction: column; gap: 6px; }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+    .legend-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    /* Info box */
+    .info-box {
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(167,139,250,0.06);
+      border: 1px solid rgba(167,139,250,0.15);
+      font-size: 12px;
+      color: var(--text-sec);
+      line-height: 1.6;
+    }
+    .info-box strong { color: var(--accent); }
+
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .computing { animation: pulse 0.6s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <a class="back-btn" href="../">&larr; Back</a>
+  </div>
+
+  <div class="container">
+    <header>
+      <div class="badge">🧠 AI Pathfinding</div>
+      <h1>A* Search Algorithm</h1>
+      <p>Interactive A* pathfinding with real-time path visualization and terrain costs</p>
+    </header>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="basic">Basic A*</button>
+      <button class="mode-tab" data-mode="terrain">With Terrain Cost</button>
+    </div>
+
+    <div class="demo-layout">
+      <div class="canvas-wrapper">
+        <canvas id="grid"></canvas>
+        <div class="canvas-hint" id="hint">Click cells to draw • Drag to paint walls</div>
+      </div>
+
+      <div class="sidebar">
+        <!-- Mode info -->
+        <div class="panel" id="mode-panel">
+          <h3>Mode Info</h3>
+          <div class="info-box" id="mode-info">
+            Standard A* with <strong>Manhattan distance</strong> heuristic. All moves cost 1. Find the shortest path avoiding walls.
+          </div>
+        </div>
+
+        <!-- Tools -->
+        <div class="panel">
+          <h3>Tools</h3>
+          <div class="tool-grid">
+            <button class="tool-btn active" data-tool="wall">
+              <span class="emoji">🧱</span> Wall
+            </button>
+            <button class="tool-btn" data-tool="start">
+              <span class="emoji">🟢</span> Start
+            </button>
+            <button class="tool-btn" data-tool="end">
+              <span class="emoji">🔴</span> End
+            </button>
+            <button class="tool-btn" data-tool="erase">
+              <span class="emoji">🧹</span> Erase
+            </button>
+          </div>
+        </div>
+
+        <!-- Terrain tools (hidden in basic mode) -->
+        <div class="panel" id="terrain-tools" style="display:none;">
+          <h3>Terrain</h3>
+          <div class="tool-grid">
+            <button class="tool-btn" data-tool="forest">
+              <span class="emoji">🌲</span> Forest (×3)
+            </button>
+            <button class="tool-btn" data-tool="mountain">
+              <span class="emoji">⛰️</span> Mountain (×5)
+            </button>
+            <button class="tool-btn" data-tool="water">
+              <span class="emoji">🌊</span> Water (×4)
+            </button>
+            <button class="tool-btn" data-tool="normal">
+              <span class="emoji">🟩</span> Plain (×1)
+            </button>
+          </div>
+          <div class="legend" style="margin-top:10px;">
+            <div class="legend-item"><div class="legend-swatch" style="background:rgba(34,197,94,0.4);"></div> Plain — cost 1</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:rgba(132,204,22,0.4);"></div> Forest — cost 3</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:rgba(234,179,8,0.4);"></div> Mountain — cost 5</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:rgba(59,130,246,0.4);"></div> Water — cost 4</div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="panel">
+          <h3>Actions</h3>
+          <div class="btn-row">
+            <button class="btn primary" id="btn-run">▶ Run A*</button>
+            <button class="btn" id="btn-step">⏭ Step</button>
+          </div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button class="btn" id="btn-clear-path">✕ Clear Path</button>
+            <button class="btn" id="btn-clear-all">↺ Reset</button>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="panel">
+          <h3>Statistics</h3>
+          <div class="stat-row">
+            <span class="stat-label">Path Length</span>
+            <span class="stat-value path" id="stat-length">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Total Cost</span>
+            <span class="stat-value cost" id="stat-cost">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Nodes Opened</span>
+            <span class="stat-value open" id="stat-open">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Nodes Closed</span>
+            <span class="stat-value closed" id="stat-closed">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Heuristic</span>
+            <span class="stat-value" id="stat-heuristic" style="color:var(--text-dim);">Manhattan</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Config ──
+    const COLS = 20, ROWS = 15;
+    const CELL_SIZE = 32;
+    const GAP = 1;
+    const TOTAL_W = COLS * (CELL_SIZE + GAP) + GAP;
+    const TOTAL_H = ROWS * (CELL_SIZE + GAP) + GAP;
+
+    // ── State ──
+    let mode = 'basic';        // 'basic' | 'terrain'
+    let tool = 'wall';         // wall|start|end|erase|forest|mountain|water|normal
+    let dragging = false;
+    let cells = [];            // {terrain, wall, g, h, f, parent, opened, closed, isPath}
+    let startPos = {x: 2, y: 2};
+    let endPos = {x: 17, y: 12};
+    let animating = false;
+    let pathNodes = [];
+    let pathIdx = 0;
+
+    // ── Canvas ──
+    const canvas = document.getElementById('grid');
+    canvas.width = TOTAL_W;
+    canvas.height = TOTAL_H;
+
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = TOTAL_W * dpr;
+    canvas.height = TOTAL_H * dpr;
+    canvas.style.width = TOTAL_W + 'px';
+    canvas.style.height = TOTAL_H + 'px';
+    ctx.scale(dpr, dpr);
+
+    // ── Init ──
+    function init() {
+      cells = [];
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          cells.push({
+            x, y,
+            terrain: 'plain',
+            cost: 1,
+            wall: false,
+            g: Infinity,
+            h: 0,
+            f: Infinity,
+            parent: null,
+            opened: false,
+            closed: false,
+            isPath: false
+          });
+        }
+      }
+      cells[startPos.y * COLS + startPos.x].terrain = 'start';
+      cells[endPos.y * COLS + endPos.x].terrain = 'end';
+    }
+
+    function getCell(x, y) {
+      if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return null;
+      return cells[y * COLS + x];
+    }
+
+    function cellAt(mx, my) {
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const cx = x * (CELL_SIZE + GAP) + GAP;
+          const cy = y * (CELL_SIZE + GAP) + GAP;
+          if (mx >= cx && mx < cx + CELL_SIZE && my >= cy && my < cy + CELL_SIZE) {
+            return {x, y};
+          }
+        }
+      }
+      return null;
+    }
+
+    // ── Heuristic ──
+    function heuristic(a, b) {
+      return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    // ── Get neighbors (4-directional) ──
+    function getNeighbors(c) {
+      const dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+      return dirs.map(([dx,dy]) => getCell(c.x+dx, c.y+dy)).filter(Boolean);
+    }
+
+    // ── A* search ──
+    function astar(s, e) {
+      // Reset
+      for (let c of cells) {
+        c.g = Infinity; c.h = 0; c.f = Infinity;
+        c.parent = null; c.opened = false; c.closed = false; c.isPath = false;
+      }
+
+      const startCell = cells[s.y * COLS + s.x];
+      const endCell = cells[e.y * COLS + e.x];
+      startCell.g = 0;
+      startCell.h = heuristic(startCell, endCell);
+      startCell.f = startCell.h;
+      startCell.opened = true;
+
+      const openSet = [startCell];
+      const closedSet = [];
+
+      while (openSet.length > 0) {
+        // Find lowest f
+        openSet.sort((a, b) => a.f - b.f);
+        const current = openSet.shift();
+
+        if (current === endCell) {
+          // Reconstruct path
+          const path = [];
+          let node = current;
+          while (node) { path.unshift(node); node = node.parent; }
+          return { path, openSet: closedSet, pathCost: current.g, found: true };
+        }
+
+        current.closed = true;
+        openSet.splice(openSet.indexOf(current), 1);
+        closedSet.push(current);
+
+        for (const neighbor of getNeighbors(current)) {
+          if (neighbor.wall || neighbor.closed) continue;
+
+          const moveCost = neighbor.wall ? 0 : neighbor.cost; // wall is impassable, terrain cost
+          if (moveCost === 0 && neighbor.wall) continue;
+
+          const tentativeG = current.g + moveCost;
+          if (tentativeG < neighbor.g) {
+            neighbor.parent = current;
+            neighbor.g = tentativeG;
+            neighbor.h = heuristic(neighbor, endCell);
+            neighbor.f = neighbor.g + neighbor.h;
+            if (!neighbor.opened) {
+              neighbor.opened = true;
+              openSet.push(neighbor);
+            }
+          }
+        }
+      }
+
+      return { path: null, openSet: closedSet, pathCost: 0, found: false };
+    }
+
+    // ── Stepped A* ──
+    let steppedState = null;
+
+    function astarStepped(s, e) {
+      // Reset
+      for (let c of cells) {
+        c.g = Infinity; c.h = 0; c.f = Infinity;
+        c.parent = null; c.opened = false; c.closed = false; c.isPath = false;
+      }
+
+      const startCell = cells[s.y * COLS + s.x];
+      const endCell = cells[e.y * COLS + e.x];
+      startCell.g = 0;
+      startCell.h = heuristic(startCell, endCell);
+      startCell.f = startCell.h;
+      startCell.opened = true;
+      startCell.closed = true;
+
+      const openSet = [startCell];
+      const closedSet = [startCell];
+
+      steppedState = { openSet, closedSet, endCell, path: null, pathCost: 0, found: false, finished: false };
+    }
+
+    function step() {
+      if (!steppedState || steppedState.finished) return;
+      const { openSet, endCell } = steppedState;
+
+      if (openSet.length === 0) {
+        steppedState.finished = true;
+        return;
+      }
+
+      openSet.sort((a, b) => a.f - b.f);
+      const current = openSet.shift();
+
+      if (current === endCell) {
+        const path = [];
+        let node = current;
+        while (node) { path.unshift(node); node = node.parent; }
+        steppedState.path = path;
+        steppedState.pathCost = current.g;
+        steppedState.found = true;
+        steppedState.finished = true;
+        // Mark path
+        for (let c of cells) c.isPath = false;
+        for (let c of path) c.isPath = true;
+        return;
+      }
+
+      current.closed = true;
+      closedSet.push(current);
+
+      for (const neighbor of getNeighbors(current)) {
+        if (neighbor.wall || neighbor.closed) continue;
+        if (neighbor.cost === 0 && neighbor.wall) continue;
+
+        const moveCost = neighbor.cost;
+        const tentativeG = current.g + moveCost;
+        if (tentativeG < neighbor.g) {
+          neighbor.parent = current;
+          neighbor.g = tentativeG;
+          neighbor.h = heuristic(neighbor, endCell);
+          neighbor.f = neighbor.g + neighbor.h;
+          if (!neighbor.opened) {
+            neighbor.opened = true;
+            openSet.push(neighbor);
+          }
+        }
+      }
+
+      // Build path
+      const path = [];
+      let node = current;
+      while (node && node.parent) { path.unshift(node); node = node.parent; }
+      steppedState.path = path;
+      steppedState.pathCost = current.g;
+    }
+
+    // ── Rendering ──
+    function render() {
+      ctx.clearRect(0, 0, TOTAL_W, TOTAL_H);
+
+      // Grid background
+      for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
+        const x = c.x * (CELL_SIZE + GAP) + GAP;
+        const y = c.y * (CELL_SIZE + GAP) + GAP;
+
+        // Cell background based on terrain
+        let fill = 'rgba(255,255,255,0.015)';
+        if (c.wall) fill = 'rgba(255,255,255,0.12)';
+        else if (c.terrain === 'start') fill = 'rgba(110,231,183,0.25)';
+        else if (c.terrain === 'end') fill = 'rgba(244,114,182,0.25)';
+        else if (c.terrain === 'forest') fill = 'rgba(132,204,22,0.2)';
+        else if (c.terrain === 'mountain') fill = 'rgba(234,179,8,0.2)';
+        else if (c.terrain === 'water') fill = 'rgba(59,130,246,0.2)';
+
+        ctx.fillStyle = fill;
+        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+
+        // Open set
+        if (c.opened && !c.closed && !c.wall && c.terrain !== 'start' && c.terrain !== 'end') {
+          ctx.fillStyle = 'rgba(167,139,250,0.12)';
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+          ctx.strokeStyle = 'rgba(167,139,250,0.3)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+        }
+
+        // Closed set
+        if (c.closed && !c.isPath && !c.wall) {
+          ctx.fillStyle = 'rgba(139,92,246,0.06)';
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        }
+
+        // Path
+        if (c.isPath) {
+          ctx.fillStyle = 'rgba(110,231,183,0.4)';
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+          ctx.strokeStyle = 'rgba(110,231,183,0.6)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+        }
+
+        // Start
+        if (c.terrain === 'start') {
+          ctx.fillStyle = 'rgba(110,231,183,0.8)';
+          ctx.fillRect(x + 4, y + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+          ctx.fillStyle = '#fff';
+          ctx.font = '12px Inter';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('S', x + CELL_SIZE/2, y + CELL_SIZE/2);
+        }
+
+        // End
+        if (c.terrain === 'end') {
+          ctx.fillStyle = 'rgba(244,114,182,0.8)';
+          ctx.fillRect(x + 4, y + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+          ctx.fillStyle = '#fff';
+          ctx.font = '12px Inter';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('E', x + CELL_SIZE/2, y + CELL_SIZE/2);
+        }
+
+        // Wall
+        if (c.wall) {
+          ctx.fillStyle = 'rgba(255,255,255,0.15)';
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+          // X mark
+          ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x + 4, y + 4);
+          ctx.lineTo(x + CELL_SIZE - 4, y + CELL_SIZE - 4);
+          ctx.moveTo(x + CELL_SIZE - 4, y + 4);
+          ctx.lineTo(x + 4, y + CELL_SIZE - 4);
+          ctx.stroke();
+        }
+
+        // Cost label for terrain cells
+        if (c.terrain !== 'plain' && c.terrain !== 'start' && c.terrain !== 'end' && !c.wall) {
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.font = '8px JetBrains Mono';
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(c.cost.toString(), x + CELL_SIZE - 3, y + CELL_SIZE - 3);
+        }
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+      }
+    }
+
+    // ── Stats ──
+    function updateStats(result) {
+      if (!result) return;
+      document.getElementById('stat-length').textContent = result.path ? result.path.length - 1 : '—';
+      document.getElementById('stat-cost').textContent = result.pathCost ? result.pathCost.toFixed(1) : '—';
+      let opened = 0, closed = 0;
+      for (let c of cells) { if (c.opened) opened++; if (c.closed) closed++; }
+      document.getElementById('stat-open').textContent = opened;
+      document.getElementById('stat-closed').textContent = closed;
+      document.getElementById('stat-heuristic').textContent = mode === 'basic' ? 'Manhattan' : 'Manhattan (cost-aware)';
+
+      if (result.path) {
+        for (let c of cells) c.isPath = false;
+        for (let c of result.path) c.isPath = true;
+      }
+    }
+
+    // ── Event handlers ──
+    function getCanvasPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = TOTAL_W / rect.width;
+      const scaleY = TOTAL_H / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
+
+    function handleCellClick(pos) {
+      if (!pos || pos.x < 0 || pos.x >= COLS || pos.y < 0 || pos.y >= ROWS) return;
+
+      const c = cells[pos.y * COLS + pos.x];
+
+      // Don't overwrite start/end unless tool is for them
+      if (c.terrain === 'start' && tool !== 'start') return;
+      if (c.terrain === 'end' && tool !== 'end') return;
+
+      switch (tool) {
+        case 'wall':
+          c.wall = true;
+          c.terrain = 'plain';
+          c.cost = 1;
+          break;
+        case 'start':
+          // Clear old start
+          for (let c2 of cells) if (c2.terrain === 'start') c2.terrain = 'plain';
+          c.terrain = 'start';
+          startPos = {x: pos.x, y: pos.y};
+          break;
+        case 'end':
+          for (let c2 of cells) if (c2.terrain === 'end') c2.terrain = 'plain';
+          c.terrain = 'end';
+          endPos = {x: pos.x, y: pos.y};
+          break;
+        case 'erase':
+          c.wall = false;
+          c.terrain = 'plain';
+          c.cost = 1;
+          break;
+        case 'forest':
+          c.wall = false; c.terrain = 'forest'; c.cost = 3; break;
+        case 'mountain':
+          c.wall = false; c.terrain = 'mountain'; c.cost = 5; break;
+        case 'water':
+          c.wall = false; c.terrain = 'water'; c.cost = 4; break;
+        case 'normal':
+          c.wall = false; c.terrain = 'plain'; c.cost = 1; break;
+      }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (animating) return;
+      const pos = cellAt(getCanvasPos(e).x, getCanvasPos(e).y);
+      if (pos) {
+        dragging = true;
+        handleCellClick(pos);
+        render();
+      }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (!dragging || animating) return;
+      const pos = cellAt(getCanvasPos(e).x, getCanvasPos(e).y);
+      if (pos) handleCellClick(pos);
+      render();
+    });
+    canvas.addEventListener('mouseup', () => { dragging = false; });
+    canvas.addEventListener('mouseleave', () => { dragging = false; });
+
+    // Touch support
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (animating) return;
+      const pos = cellAt(getCanvasPos(e).x, getCanvasPos(e).y);
+      if (pos) { dragging = true; handleCellClick(pos); render(); }
+    }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!dragging || animating) return;
+      const pos = cellAt(getCanvasPos(e).x, getCanvasPos(e).y);
+      if (pos) handleCellClick(pos);
+      render();
+    }, {passive: false});
+    canvas.addEventListener('touchend', () => { dragging = false; });
+
+    // ── Tool buttons ──
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        tool = btn.dataset.tool;
+      });
+    });
+
+    // ── Mode tabs ──
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        mode = tab.dataset.mode;
+
+        document.getElementById('terrain-tools').style.display = mode === 'terrain' ? 'block' : 'none';
+
+        const info = document.getElementById('mode-info');
+        if (mode === 'basic') {
+          info.innerHTML = 'Standard A* with <strong>Manhattan distance</strong> heuristic. All moves cost 1. Find the shortest path avoiding walls.';
+        } else {
+          info.innerHTML = 'A* with <strong>terrain costs</strong>. Forest ×3, Mountain ×5, Water ×4. Algorithm finds the <strong>lowest-cost path</strong>, not necessarily the shortest route.';
+        }
+
+        // Reset
+        for (let c of cells) {
+          if (c.terrain !== 'start' && c.terrain !== 'end') {
+            c.wall = false;
+            c.terrain = 'plain';
+            c.cost = 1;
+          }
+          c.g = Infinity; c.h = 0; c.f = Infinity;
+          c.parent = null; c.opened = false; c.closed = false; c.isPath = false;
+        }
+        updateStats(null);
+        render();
+      });
+    });
+
+    // ── Run A* ──
+    document.getElementById('btn-run').addEventListener('click', () => {
+      if (animating) return;
+      animating = true;
+
+      // Visual animation: open nodes pulse, then show path
+      let stepCount = 0;
+      const maxSteps = 500;
+
+      // Run A* fully first, then animate
+      const result = astar(startPos, endPos);
+      updateStats(result);
+
+      // Animate open set nodes
+      let openNodes = [];
+      for (let c of cells) { if (c.opened && !c.closed) openNodes.push(c); }
+
+      let idx = 0;
+      const openInterval = setInterval(() => {
+        if (idx < openNodes.length) {
+          openNodes[idx].opened = false;
+          openNodes[idx].closed = true;
+          idx++;
+          render();
+        } else {
+          clearInterval(openInterval);
+          // Animate path
+          if (result.path) {
+            for (let p of result.path) p.isPath = true;
+            animating = false;
+            render();
+          } else {
+            animating = false;
+          }
+        }
+      }, 10);
+    });
+
+    // ── Step ──
+    document.getElementById('btn-step').addEventListener('click', () => {
+      if (animating) return;
+      if (!steppedState) {
+        astarStepped(startPos, endPos);
+        step();
+      } else {
+        step();
+      }
+      updateStats(steppedState);
+
+      // Clear path visualization for stepped mode
+      for (let c of cells) c.isPath = false;
+      if (steppedState.path) {
+        for (let c of steppedState.path) c.isPath = true;
+      }
+
+      if (steppedState.finished) {
+        animating = false;
+        steppedState = null;
+      }
+      render();
+    });
+
+    // ── Clear path ──
+    document.getElementById('btn-clear-path').addEventListener('click', () => {
+      for (let c of cells) {
+        c.opened = false;
+        c.closed = false;
+        c.isPath = false;
+        c.g = Infinity;
+        c.h = 0;
+        c.f = Infinity;
+        c.parent = null;
+      }
+      updateStats(null);
+      steppedState = null;
+      render();
+    });
+
+    // ── Reset all ──
+    document.getElementById('btn-clear-all').addEventListener('click', () => {
+      init();
+      animating = false;
+      steppedState = null;
+      pathNodes = [];
+      pathIdx = 0;
+      for (let c of cells) {
+        c.wall = false;
+        c.terrain = 'plain';
+        c.cost = 1;
+      }
+      cells[startPos.y * COLS + startPos.x].terrain = 'start';
+      cells[endPos.y * COLS + endPos.x].terrain = 'end';
+      updateStats(null);
+      render();
+    });
+
+    // ── Init ──
+    init();
+    render();
+  </script>
+</body>
+</html>
