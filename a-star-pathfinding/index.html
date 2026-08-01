@@ -506,9 +506,7 @@
         for (const neighbor of getNeighbors(current)) {
           if (neighbor.wall || neighbor.closed) continue;
 
-          const moveCost = neighbor.wall ? 0 : neighbor.cost; // wall is impassable, terrain cost
-          if (moveCost === 0 && neighbor.wall) continue;
-
+          const moveCost = neighbor.cost;
           const tentativeG = current.g + moveCost;
           if (tentativeG < neighbor.g) {
             neighbor.parent = current;
@@ -542,17 +540,16 @@
       startCell.h = heuristic(startCell, endCell);
       startCell.f = startCell.h;
       startCell.opened = true;
-      startCell.closed = true;
 
       const openSet = [startCell];
-      const closedSet = [startCell];
+      const closedSet = [];
 
       steppedState = { openSet, closedSet, endCell, path: null, pathCost: 0, found: false, finished: false };
     }
 
     function step() {
       if (!steppedState || steppedState.finished) return;
-      const { openSet, endCell } = steppedState;
+      const { openSet, endCell, closedSet } = steppedState;
 
       if (openSet.length === 0) {
         steppedState.finished = true;
@@ -581,7 +578,6 @@
 
       for (const neighbor of getNeighbors(current)) {
         if (neighbor.wall || neighbor.closed) continue;
-        if (neighbor.cost === 0 && neighbor.wall) continue;
 
         const moveCost = neighbor.cost;
         const tentativeG = current.g + moveCost;
