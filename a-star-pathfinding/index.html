@@ -500,7 +500,6 @@
         }
 
         current.closed = true;
-        openSet.splice(openSet.indexOf(current), 1);
         closedSet.push(current);
 
         for (const neighbor of getNeighbors(current)) {
@@ -553,6 +552,9 @@
 
       if (openSet.length === 0) {
         steppedState.finished = true;
+        steppedState.path = null;
+        steppedState.pathCost = 0;
+        steppedState.found = false;
         return;
       }
 
@@ -709,7 +711,7 @@
         document.getElementById('stat-closed').textContent = '0';
         return;
       }
-      document.getElementById('stat-length').textContent = result.path ? result.path.length - 1 : '—';
+      document.getElementById('stat-length').textContent = result.path && result.path.length > 1 ? result.path.length - 1 : '—';
       document.getElementById('stat-cost').textContent = result.pathCost ? result.pathCost.toFixed(1) : '—';
       let opened = 0, closed = 0;
       for (let c of cells) { if (c.opened) opened++; if (c.closed) closed++; }
