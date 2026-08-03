@@ -325,7 +325,7 @@
               <span class="emoji">🌲</span> Forest (×3)
             </button>
             <button class="tool-btn" data-tool="mountain">
-              <span class="emoji">⛰️</span> Mountain (×5)
+              <span class="emoji">⛰️</span> Mountain (×10)
             </button>
             <button class="tool-btn" data-tool="water">
               <span class="emoji">🌊</span> Water (×4)
@@ -337,7 +337,7 @@
           <div class="legend" style="margin-top:10px;">
             <div class="legend-item"><div class="legend-swatch" style="background:rgba(34,197,94,0.4);"></div> Plain — cost 1</div>
             <div class="legend-item"><div class="legend-swatch" style="background:rgba(132,204,22,0.4);"></div> Forest — cost 3</div>
-            <div class="legend-item"><div class="legend-swatch" style="background:rgba(234,179,8,0.4);"></div> Mountain — cost 5</div>
+            <div class="legend-item"><div class="legend-swatch" style="background:rgba(234,179,8,0.4);"></div> Mountain — cost 10</div>
             <div class="legend-item"><div class="legend-swatch" style="background:rgba(59,130,246,0.4);"></div> Water — cost 4</div>
           </div>
         </div>
@@ -773,7 +773,7 @@
         case 'forest':
           c.wall = false; c.terrain = 'forest'; c.cost = 3; break;
         case 'mountain':
-          c.wall = false; c.terrain = 'mountain'; c.cost = 5; break;
+          c.wall = false; c.terrain = 'mountain'; c.cost = 10; break;
         case 'water':
           c.wall = false; c.terrain = 'water'; c.cost = 4; break;
         case 'normal':
@@ -837,7 +837,7 @@
         if (mode === 'basic') {
           info.innerHTML = 'Standard A* with <strong>Manhattan distance</strong> heuristic. All moves cost 1. Find the shortest path avoiding walls.';
         } else {
-          info.innerHTML = 'A* with <strong>terrain costs</strong>. Forest ×3, Mountain ×5, Water ×4. Algorithm finds the <strong>lowest-cost path</strong>, not necessarily the shortest route.';
+          info.innerHTML = 'A* with <strong>terrain costs</strong>. Forest ×3, Mountain ×10, Water ×4. Algorithm finds the <strong>lowest-cost path</strong>, not necessarily the shortest route.';
         }
 
         // Reset
