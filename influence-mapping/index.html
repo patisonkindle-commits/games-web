@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Influence Mapping — Interactive Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #07070f;
+      --surface: rgba(255,255,255,0.03);
+      --surface-hover: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.08);
+      --text: #e8e8f0;
+      --text-sec: #8888a0;
+      --text-dim: #55556a;
+      --accent: #34d399;
+      --enemy: #f87171;
+    }
+
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+    .top-bar { display: flex; align-items: center; gap: 16px; padding: 16px 24px 0; max-width: 1200px; margin: 0 auto; }
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text-sec); font-size: 13px; font-family: 'Inter', sans-serif; text-decoration: none; transition: all 0.2s; cursor: pointer; }
+    .back-btn:hover { background: var(--surface-hover); color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 24px 60px; }
+    header { margin-bottom: 20px; }
+    header .badge { display: inline-block; padding: 4px 12px; border-radius: 100px; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; }
+    header h1 { font-size: clamp(24px, 4vw, 36px); font-weight: 800; letter-spacing: -0.8px; color: var(--text); line-height: 1.2; }
+    header p { color: var(--text-sec); font-size: 14px; margin-top: 6px; line-height: 1.6; }
+
+    .layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
+    .panel-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px; }
+    .panel-wrap h3 { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+    canvas.grid { display: block; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+
+    .legend { display: flex; gap: 16px; margin-top: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-sec); }
+    .legend .swatch { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+    .legend .swatch.ally { background: rgba(52,211,153,0.5); }
+    .legend .swatch.enemy { background: rgba(248,113,113,0.5); }
+
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+    .panel h3 { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+    .panel p.note { font-size: 12.5px; line-height: 1.7; color: var(--text-sec); }
+
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tool-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text-sec); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; }
+    .tool-btn:hover { background: var(--surface-hover); color: var(--text); }
+    .tool-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(52,211,153,0.12); }
+    .tool-btn.enemy.active { border-color: var(--enemy); color: var(--enemy); background: rgba(248,113,113,0.12); }
+
+    .field { margin-bottom: 12px; }
+    .field label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-sec); margin-bottom: 6px; }
+    .field label b { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }
+    input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .btn { padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s; flex: 1; }
+    .btn:hover { background: var(--surface-hover); color: var(--text); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #06251a; }
+    .btn.primary:hover { filter: brightness(1.1); }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    .stat { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 6px; font-size: 12.5px; }
+    .stat .k { color: var(--text-sec); }
+    .stat .v { color: var(--text); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+    .stat.coverage { grid-column: 1/-1; display: block; }
+    .stat.coverage .bar-track { height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden; }
+    .stat.coverage .bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--enemy), #a78bfa, var(--accent)); transition: width 0.3s; }
+
+    .color-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <a class="back-btn" href="../">← Back</a>
+  </div>
+
+  <div class="container">
+    <header>
+      <span class="badge">🧠 AI Tactics · Spatial Awareness</span>
+      <h1>Influence Mapping</h1>
+      <p>Each unit radiates influence that fades with distance. Playable areas trade between allies (positive, green) and enemies (negative, red). Tactical AI use this map to pick control zones and safe routes.</p>
+    </header>
+
+    <div class="layout">
+      <div class="canvas-col">
+        <div class="panel-wrap">
+          <canvas id="grid" class="grid"></canvas>
+          <div class="color-scale"><span>Enemy control</span><span>Neutral</span><span>Ally control</span></div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="swatch ally"></div> Ally (positive influence)</div>
+          <div class="legend-item"><div class="swatch enemy"></div> Enemy (negative influence)</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h3>TOOLS</h3>
+          <div class="tool-grid">
+            <button class="tool-btn active" data-tool="ally"><span class="emoji" style="font-size:14px;">🟢</span> Ally</button>
+            <button class="tool-btn enemy" data-tool="enemy"><span class="emoji" style="font-size:14px;">🔴</span> Enemy</button>
+            <button class="tool-btn" data-tool="move"><span class="emoji" style="font-size:14px;">✋</span> Move</button>
+            <button class="tool-btn" data-tool="erase"><span class="emoji" style="font-size:14px;">🧹</span> Erase</button>
+          </div>
+          <p class="note" style="margin-top:12px;">Click to place · drag Ally/Enemy to paint a line · drag Move to reposition an existing unit.</p>
+        </div>
+
+        <div class="panel">
+          <h3>INFLUENCE MODEL</h3>
+          <div class="field">
+            <label>Radius <b id="radVal">6</b></label>
+            <input type="range" id="radius" min="1" max="12" value="6">
+          </div>
+          <div class="field">
+            <label>Decay/step <b id="decVal">0.80</b></label>
+            <input type="range" id="decay" min="0.1" max="1.5" step="0.05" value="0.8">
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" id="btn-run">▶ Compute Map</button>
+            <button class="btn" id="btn-reset">↺ Reset</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>STATISTICS</h3>
+          <div class="stats-grid">
+            <div class="stat"><span class="k">Allies</span><span class="v" id="stat-allies">0</span></div>
+            <div class="stat"><span class="k">Enemies</span><span class="v" id="stat-enemies">0</span></div>
+            <div class="stat"><span class="k">Max |influence|</span><span class="v" id="stat-max">—</span></div>
+            <div class="stat coverage">Ally control
+              <div class="bar-track"><div class="bar" id="stat-bar" style="width:50%;"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Config ──
+    const COLS = 24, ROWS = 16;
+    const CELL = 30, GAP = 1;
+    const TOTAL_W = COLS * (CELL + GAP) + GAP;
+    const TOTAL_H = ROWS * (CELL + GAP) + GAP;
+
+    // ── State ──
+    let tool = 'ally';   // ally | enemy | move | erase
+    let units = [];      // {x, y, team}
+    let influenceMap = null;
+    let computed = false;
+    let dragging = false;
+
+    const canvas = document.getElementById('grid');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = TOTAL_W * dpr;
+    canvas.height = TOTAL_H * dpr;
+    canvas.style.width = TOTAL_W + 'px';
+    canvas.style.height = TOTAL_H + 'px';
+    ctx.scale(dpr, dpr);
+
+    const idx = (x, y) => y * COLS + x;
+    const inB = (x, y) => x >= 0 && x < COLS && y >= 0 && y < ROWS;
+    const unitAt = (x, y) => units.find(u => u.x === x && u.y === y);
+
+    // ── Default scenario ──
+    function seed() {
+      units = [
+        {x: 3,  y: 3,  team: 'ally'}, {x: 4,  y: 4,  team: 'ally'}, {x: 2,  y: 5,  team: 'ally'},
+        {x: 5,  y: 2,  team: 'ally'}, {x: 11, y: 7,  team: 'enemy'}, {x: 13, y: 9,  team: 'enemy'},
+        {x: 19, y: 11, team: 'enemy'}, {x: 20, y: 12, team: 'enemy'}, {x: 18, y: 13, team: 'enemy'}
+      ];
+    }
+
+    function cellAt(mx, my) {
+      const gx = Math.floor((mx - GAP) / (CELL + GAP));
+      const gy = Math.floor((my - GAP) / (CELL + GAP));
+      if (!inB(gx, gy)) return null;
+      // verify inside cell body (not in the gap)
+      const cx = gx * (CELL + GAP) + GAP;
+      const cy = gy * (CELL + GAP) + GAP;
+      if (mx < cx || mx >= cx + CELL || my < cy || my >= cy + CELL) return null;
+      return {x: gx, y: gy};
+    }
+
+    function getCanvasPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const sx = TOTAL_W / rect.width, sy = TOTAL_H / rect.height;
+      const c = e.touches ? e.touches[0] : e;
+      return {x: (c.clientX - rect.left) * sx, y: (c.clientY - rect.top) * sy};
+    }
+
+    // ── Influence computation ──
+    // value = Σ team * strength * decay^dist   (dist in cells, soft-radius via decay)
+    function computeMap() {
+      const decay = +document.getElementById('decay').value;
+      influenceMap = new Float32Array(COLS * ROWS);
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          let v = 0;
+          for (const u of units) {
+            const dist = Math.hypot(u.x - x, u.y - y);
+            const val = Math.pow(decay, dist);          // exponential falloff with distance
+            v += u.team === 'ally' ? val : -val;
+          }
+          influenceMap[idx(x, y)] = v;
+        }
+      }
+      computed = true;
+      render();
+    }
+
+    // ── Render ──
+    function render() {
+      ctx.clearRect(0, 0, TOTAL_W, TOTAL_H);
+
+      // 1) Heatmap
+      let maxAbs = 0;
+      if (computed && influenceMap) {
+        for (let i = 0; i < influenceMap.length; i++) maxAbs = Math.max(maxAbs, Math.abs(influenceMap[i]));
+      }
+      const norm = maxAbs || 1;
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const px = x * (CELL + GAP) + GAP, py = y * (CELL + GAP) + GAP;
+          if (computed && influenceMap) {
+            const v = influenceMap[idx(x, y)];
+            const a = Math.min(1, Math.abs(v) / norm) * 0.55;
+            if (v > 0.005) ctx.fillStyle = `rgba(52,211,153,${a.toFixed(3)})`;
+            else if (v < -0.005) ctx.fillStyle = `rgba(248,113,113,${a.toFixed(3)})`;
+            else ctx.fillStyle = 'rgba(255,255,255,0.015)';
+          } else {
+            ctx.fillStyle = 'rgba(255,255,255,0.015)';
+          }
+          ctx.fillRect(px, py, CELL, CELL);
+        }
+      }
+
+      // 2) Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 0.5;
+      for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(GAP, y * (CELL + GAP) + GAP); ctx.lineTo(TOTAL_W, y * (CELL + GAP) + GAP); ctx.stroke(); }
+      for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x * (CELL + GAP) + GAP, GAP); ctx.lineTo(x * (CELL + GAP) + GAP, TOTAL_H); ctx.stroke(); }
+
+      // 3) Units
+      for (const u of units) {
+        const px = u.x * (CELL + GAP) + GAP + CELL / 2;
+        const py = u.y * (CELL + GAP) + GAP + CELL / 2;
+        const color = u.team === 'ally' ? '#34d399' : '#f87171';
+        ctx.beginPath(); ctx.arc(px, py, CELL * 0.28, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = '#07070f'; ctx.font = '600 11px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(u.team === 'ally' ? 'A' : 'E', px, py + 1);
+      }
+
+      drawStats();
+    }
+
+    // ── Stats ──
+    function drawStats() {
+      document.getElementById('stat-allies').textContent = units.filter(u => u.team === 'ally').length;
+      document.getElementById('stat-enemies').textContent = units.filter(u => u.team === 'enemy').length;
+      if (!computed || !influenceMap) {
+        document.getElementById('stat-max').textContent = '—';
+        document.getElementById('stat-bar').style.width = '50%';
+        return;
+      }
+      let pos = 0, neg = 0, maxAbs = 0;
+      for (let i = 0; i < influenceMap.length; i++) {
+        const v = influenceMap[i];
+        if (v > 0.001) pos++; else if (v < -0.001) neg++;
+        maxAbs = Math.max(maxAbs, Math.abs(v));
+      }
+      const pctAlly = Math.round((pos / influenceMap.length) * 100);
+      document.getElementById('stat-max').textContent = maxAbs.toFixed(2);
+      document.getElementById('stat-bar').style.width = pctAlly + '%';
+    }
+
+    // ── Tool interaction ──
+    function handleCell(pos) {
+      if (!pos) return;
+      const existing = unitAt(pos.x, pos.y);
+      if (tool === 'move') {
+        if (existing) dragUnit = existing;
+        return;
+      }
+      if (existing) {
+        if (tool === 'erase' || existing.team === tool) units.splice(units.indexOf(existing), 1);
+        return;
+      }
+      if (tool === 'ally' || tool === 'enemy') {
+        units.push({x: pos.x, y: pos.y, team: tool});
+        if (computed) computeMap();
+      }
+      render();
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const pos = cellAt(getCanvasPos(e).x, getCanvasPos(e).y);
+      if (!pos) return;
+      if (tool === 'move') {
+        const u = unitAt(pos.x, pos.y);
+        if (u) dragUnit = u;
+        return;
+      }
+      handleCell(pos);
+      dragging = true;
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      const pos = cellAt(getCanvasPos(e).x, getCanvasPos(e).y);
+      if (!pos) return;
+      if (dragUnit) { dragUnit.x = pos.x; dragUnit.y = pos.y; if (computed) computeMap(); else render(); return; }
+      if (dragging) handleCell(pos);
+    });
+    canvas.addEventListener('mouseup', () => { dragging = false; dragUnit = null; });
+    canvas.addEventListener('mouseleave', () => { dragging = false; dragUnit = null; });
+
+    // Touch
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); const pos = cellAt(getCanvasPos(e).x, getCanvasPos(e).y); if (!pos) return; if (tool === 'move') { const u = unitAt(pos.x, pos.y); if (u) dragUnit = u; } else { handleCell(pos); dragging = true; } }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); const pos = cellAt(getCanvasPos(e).x, getCanvasPos(e).y); if (!pos) return; if (dragUnit) { dragUnit.x = pos.x; dragUnit.y = pos.y; if (computed) computeMap(); else render(); } else if (dragging) handleCell(pos); }, {passive: false});
+    canvas.addEventListener('touchend', () => { dragging = false; dragUnit = null; });
+
+    // ── Buttons ──
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        tool = btn.dataset.tool;
+      });
+    });
+
+    document.getElementById('radius').addEventListener('input', (e) => {
+      document.getElementById('radVal').textContent = e.target.value;
+    });
+    document.getElementById('decay').addEventListener('input', (e) => {
+      document.getElementById('decVal').textContent = (+e.target.value).toFixed(2);
+    });
+
+    document.getElementById('btn-run').addEventListener('click', computeMap);
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      seed();
+      computed = false;
+      influenceMap = null;
+      render();
+    });
+
+    // ── Init ──
+    seed();
+    render();
+  </script>
+</body>
+</html>
