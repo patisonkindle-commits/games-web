@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finite State Machine Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-deep: #07070f;
+      --text-primary: #e8e8f0;
+      --text-secondary: #8888a0;
+      --text-dim: #55556a;
+      --accent-idle: #4ecdc4;
+      --accent-walk: #ffd93d;
+      --accent-jump: #ff6b6b;
+      --accent-attack: #a78bfa;
+      --accent-run: #4ecdc4;
+      --card-bg: rgba(255,255,255,0.04);
+      --border-card: rgba(255,255,255,0.06);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .bg-canvas {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 0; overflow: hidden; pointer-events: none;
+    }
+    .bg-canvas .orb {
+      position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.12;
+      animation: orbFloat 20s ease-in-out infinite;
+    }
+    .bg-canvas .orb:nth-child(1) { width: 500px; height: 500px; background: #a78bfa; top: -10%; left: -5%; animation-delay: 0s; }
+    .bg-canvas .orb:nth-child(2) { width: 400px; height: 400px; background: #ff6b6b; bottom: -5%; right: -5%; animation-delay: -7s; }
+    .bg-canvas .orb:nth-child(3) { width: 350px; height: 350px; background: #4ecdc4; top: 40%; left: 50%; animation-delay: -14s; }
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(60px, -40px) scale(1.05); }
+      66% { transform: translate(-30px, 50px) scale(0.95); }
+    }
+
+    .bg-grid {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1; pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    .container {
+      position: relative; z-index: 2;
+      max-width: 1100px; margin: 0 auto; padding: 48px 24px 60px;
+    }
+
+    header { text-align: center; margin-bottom: 40px; }
+    header .badge {
+      display: inline-block; padding: 6px 16px; border-radius: 100px;
+      background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.2);
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: #a78bfa;
+      margin-bottom: 16px; text-transform: uppercase;
+    }
+    header h1 {
+      font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: -1.5px;
+      background: linear-gradient(135deg, #f0f0ff 0%, #a78bfa 50%, #ff6b6b 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height: 1.15;
+    }
+    header p { color: var(--text-secondary); font-size: 15px; margin-top: 10px; }
+
+    .fsm-layout {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;
+    }
+
+    .panel {
+      border-radius: 16px; background: var(--card-bg); border: 1px solid var(--border-card);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow: hidden;
+    }
+
+    .panel-title {
+      padding: 16px 20px; font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-dim); border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .canvas-wrap { padding: 0; }
+    .canvas-wrap canvas { display: block; width: 100%; height: auto; }
+
+    /* Current state highlight */
+    .state-display {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; padding: 28px 20px;
+    }
+    .state-icon { font-size: 32px; }
+    .state-name {
+      font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+      transition: color 0.3s;
+    }
+    .state-label {
+      font-size: 11px; color: var(--text-dim); margin-left: 4px; font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* State buttons */
+    .btn-row {
+      display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 20px; justify-content: center;
+    }
+    .btn {
+      padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04); color: var(--text-secondary);
+      font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+    .btn.idle:hover   { border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
+    .btn.walk:hover   { border-color: rgba(255,217,61,0.3); color: #ffd93d; }
+    .btn.jump:hover   { border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
+    .btn.attack:hover { border-color: rgba(167,139,250,0.3); color: #a78bfa; }
+    .btn.run:hover    { border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
+
+    /* Event log */
+    .log-area {
+      max-height: 200px; overflow-y: auto; padding: 12px 20px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    }
+    .log-area::-webkit-scrollbar { width: 4px; }
+    .log-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    .log-entry {
+      padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.02);
+      color: var(--text-dim); line-height: 1.5;
+    }
+    .log-entry .from { color: #8888a0; }
+    .log-entry .arrow { color: #55556a; }
+    .log-entry .to { font-weight: 600; }
+    .log-entry .evt { color: #a78bfa; }
+
+    /* State legend */
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px;
+      justify-content: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* Transitions panel */
+    .transitions-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px 20px;
+    }
+    .transition-card {
+      padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.04); text-align: center;
+    }
+    .transition-card .from-to {
+      font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+    }
+    .transition-card .event {
+      font-size: 10px; color: #a78bfa; margin-top: 2px; font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Back link */
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+      border-radius: 10px; color: var(--text-secondary); text-decoration: none;
+      font-size: 13px; transition: color 0.2s; margin-top: 20px;
+    }
+    .back-link:hover { color: var(--text-primary); }
+
+    @media (max-width: 640px) {
+      .fsm-layout { grid-template-columns: 1fr; }
+      .container { padding: 24px 12px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-canvas">
+    <div class="orb"></div>
+    <div class="orb"></div>
+    <div class="orb"></div>
+  </div>
+  <div class="bg-grid"></div>
+
+  <div class="container">
+    <header>
+      <div class="badge">🧠 AI Fundamentals</div>
+      <h1>Finite State Machine</h1>
+      <p>Interactive state machine with visual transitions &amp; event log</p>
+    </header>
+
+    <div class="fsm-layout">
+      <!-- Left: Game canvas + state display -->
+      <div class="panel">
+        <div class="panel-title">Character</div>
+        <div class="state-display">
+          <span class="state-icon" id="stateIcon">🟢</span>
+          <span class="state-name" id="stateName" style="color:#4ecdc4">IDLE</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="gameCanvas" width="400" height="280"></canvas>
+        </div>
+      </div>
+
+      <!-- Right: Controls + transitions + log -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <!-- State buttons -->
+        <div class="panel">
+          <div class="panel-title">Input Events</div>
+          <div class="btn-row">
+            <button class="btn idle" data-state="IDLE">⏸ IDLE</button>
+            <button class="btn walk" data-state="WALK">🚶 WALK</button>
+            <button class="btn jump" data-state="JUMP">⬆ JUMP</button>
+            <button class="btn attack" data-state="ATTACK">⚔ ATTACK</button>
+            <button class="btn run" data-state="RUN">💨 RUN</button>
+          </div>
+        </div>
+
+        <!-- Transition table -->
+        <div class="panel">
+          <div class="panel-title">Valid Transitions</div>
+          <div class="transitions-grid" id="transitionsGrid"></div>
+        </div>
+
+        <!-- Log -->
+        <div class="panel" style="flex:1;">
+          <div class="panel-title">Transition Log</div>
+          <div class="log-area" id="logArea"></div>
+        </div>
+      </div>
+    </div>
+
+    <a class="back-link" href="../">← Back to All Demos</a>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════
+    // Finite State Machine
+    // ═══════════════════════════════════════════════════
+
+    const STATES = {
+      IDLE: { color: '#4ecdc4', icon: '🟢', label: 'IDLE' },
+      WALK: { color: '#ffd93d', icon: '🚶', label: 'WALK' },
+      JUMP: { color: '#ff6b6b', icon: '⬆', label: 'JUMP' },
+      ATTACK: { color: '#a78bfa', icon: '⚔', label: 'ATTACK' },
+      RUN: { color: '#4ecdc4', icon: '💨', label: 'RUN' }
+    };
+
+    // state → event → nextState
+    const TRANSITIONS = {
+      IDLE:   { MOVE: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
+      WALK:   { IDLE: 'IDLE', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
+      JUMP:   { IDLE: 'IDLE', ATTACK: 'ATTACK' },
+      ATTACK: { IDLE: 'IDLE', WALK: 'WALK' },
+      RUN:    { IDLE: 'IDLE', WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK' }
+    };
+
+    let currentState = 'IDLE';
+    const logEntries = [];
+    const MAX_LOG = 50;
+
+    // ═══════════════════════════════════════════════════
+    // FSM Engine
+    // ═══════════════════════════════════════════════════
+
+    function changeState(state, event) {
+      if (currentState === state) return;
+      const prev = currentState;
+      currentState = state;
+      logEntry(prev, state, event);
+      updateUI();
+    }
+
+    function handleEvent(event) {
+      if (!TRANSITIONS[currentState] || !TRANSITIONS[currentState][event]) {
+        // Invalid transition — flash red briefly
+        flashInvalid();
+        return;
+      }
+      changeState(TRANSITIONS[currentState][event], event);
+    }
+
+    function logEntry(from, to, event) {
+      const entry = { from, to, event, time: new Date() };
+      logEntries.unshift(entry);
+      if (logEntries.length > MAX_LOG) logEntries.pop();
+      renderLog();
+    }
+
+    // ═══════════════════════════════════════════════════
+    // UI Updates
+    // ═══════════════════════════════════════════════════
+
+    function updateUI() {
+      const s = STATES[currentState];
+      document.getElementById('stateName').textContent = s.label;
+      document.getElementById('stateName').style.color = s.color;
+      document.getElementById('stateIcon').textContent = s.icon;
+
+      // Highlight active transition cards
+      document.querySelectorAll('.transition-card').forEach(card => {
+        const f = card.dataset.from;
+        const t = card.dataset.to;
+        card.style.opacity = (f === currentState || t === currentState) ? '1' : '0.3';
+      });
+    }
+
+    function renderLog() {
+      const area = document.getElementById('logArea');
+      area.innerHTML = logEntries.slice(0, 15).map(e => {
+        const fromColor = STATES[e.from]?.color || '#888';
+        const toColor = STATES[e.to]?.color || '#888';
+        return `<div class="log-entry">
+          <span class="from" style="color:${fromColor}">${e.from}</span>
+          <span class="arrow"> → </span>
+          <span class="to" style="color:${toColor}">${e.to}</span>
+          <span style="margin-left:8px;color:#555">[<span class="evt">${e.event}</span>]</span>
+        </div>`;
+      }).join('');
+    }
+
+    function renderTransitions() {
+      const grid = document.getElementById('transitionsGrid');
+      let html = '';
+      for (const [from, events] of Object.entries(TRANSITIONS)) {
+        for (const [event, to] of Object.entries(events)) {
+          html += `<div class="transition-card" data-from="${from}" data-to="${to}">
+            <div class="from-to">${from} → ${to}</div>
+            <div class="event">on ${event}</div>
+          </div>`;
+        }
+      }
+      grid.innerHTML = html;
+      updateUI();
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Canvas Rendering
+    // ═══════════════════════════════════════════════════
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let animTime = 0;
+    let particles = [];
+    let attackFlash = 0;
+    let jumpVel = 0;
+    let isJumping = false;
+    let walkOffset = 0;
+    let groundY = 220;
+    let charX = 200;
+    let charY = groundY;
+
+    function spawnParticle(x, y, color) {
+      particles.push({
+        x, y, vx: (Math.random() - 0.5) * 3, vy: -Math.random() * 2 - 1,
+        life: 1.0, color, size: 2 + Math.random() * 3
+      });
+    }
+
+    function drawGround() {
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY + 20);
+      ctx.lineTo(400, groundY + 20);
+      ctx.stroke();
+
+      for (let x = 0; x < 400; x += 40) {
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.fillRect(x, groundY + 20, 20, 60);
+      }
+    }
+
+    function drawCharacter(s) {
+      const color = s.color;
+      const glow = s.color + '33';
+      const cx = charX;
+      const cy = charY;
+      const bob = Math.sin(animTime * 3) * 2;
+
+      ctx.save();
+      ctx.translate(cx, cy + bob);
+
+      // Glow
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+
+      // Body
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#07070f';
+      ctx.beginPath();
+      ctx.arc(-5, -3, 3, 0, Math.PI * 2);
+      ctx.arc(5, -3, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pupils
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(-4, -4, 1.2, 0, Math.PI * 2);
+      ctx.arc(6, -4, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Mouth based on state
+      ctx.strokeStyle = '#07070f';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      if (currentState === 'ATTACK') {
+        ctx.arc(0, 4, 5, 0, Math.PI);
+      } else if (currentState === 'JUMP') {
+        ctx.arc(0, 6, 4, 0, Math.PI);
+      } else if (currentState === 'RUN') {
+        ctx.moveTo(-4, 5); ctx.lineTo(4, 5);
+      } else {
+        ctx.arc(0, 5, 3, 0.1 * Math.PI, 0.9 * Math.PI);
+      }
+      ctx.stroke();
+
+      // State-specific effects
+      if (currentState === 'RUN') {
+        // Speed lines
+        ctx.strokeStyle = 'rgba(78,205,196,0.3)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+          const ly = -8 + i * 6;
+          ctx.beginPath();
+          ctx.moveTo(-20, ly);
+          ctx.lineTo(-35 - i * 5, ly);
+          ctx.stroke();
+        }
+      }
+
+      if (currentState === 'ATTACK') {
+        attackFlash = Math.min(attackFlash + 1, 15);
+      }
+      if (attackFlash > 0) {
+        ctx.fillStyle = `rgba(167,139,250,${attackFlash / 15 * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, 24 + (15 - attackFlash) * 2, 0, Math.PI * 2);
+        ctx.fill();
+        attackFlash -= 0.5;
+      }
+
+      if (currentState === 'JUMP' && isJumping) {
+        ctx.fillStyle = `rgba(255,107,107,${0.3 + Math.sin(animTime * 10) * 0.1})`;
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.arc(-12 + i * 8, 18 + Math.sin(animTime * 8 + i) * 3, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05;
+        p.life -= 0.02;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function updateAnimation() {
+      animTime += 0.016;
+
+      if (currentState === 'WALK') {
+        walkOffset = (walkOffset + 2) % 40;
+      } else if (currentState === 'RUN') {
+        walkOffset = (walkOffset + 5) % 40;
+        if (Math.random() < 0.15) spawnParticle(charX, charY + 10, '#4ecdc4');
+      }
+
+      if (currentState === 'ATTACK' && attackFlash < 5) {
+        if (Math.random() < 0.3) spawnParticle(charX + 10, charY, '#a78bfa');
+      }
+
+      if (isJumping) {
+        jumpVel += 0.6;
+        charY += jumpVel;
+        if (charY >= groundY) {
+          charY = groundY;
+          isJumping = false;
+          jumpVel = 0;
+        }
+      }
+
+      drawGround();
+      drawCharacter(STATES[currentState]);
+      updateParticles();
+
+      requestAnimationFrame(updateAnimation);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Event Handling
+    // ═══════════════════════════════════════════════════
+
+    function flashInvalid() {
+      const display = document.querySelector('.state-display');
+      display.style.backgroundColor = 'rgba(255,107,107,0.1)';
+      setTimeout(() => { display.style.backgroundColor = ''; }, 300);
+    }
+
+    document.querySelectorAll('.btn[data-state]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.state;
+        handleEvent(target);
+        // Spawn burst on success
+        const color = STATES[currentState]?.color || '#a78bfa';
+        for (let i = 0; i < 6; i++) spawnParticle(charX, charY, color);
+      });
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      const keyMap = { '1': 'IDLE', '2': 'WALK', '3': 'JUMP', '4': 'ATTACK', '5': 'RUN' };
+      if (keyMap[e.key]) {
+        e.preventDefault();
+        handleEvent(keyMap[e.key]);
+        const color = STATES[currentState]?.color || '#a78bfa';
+        for (let i = 0; i < 6; i++) spawnParticle(charX, charY, color);
+      }
+    });
+
+    // Jump physics
+    function tryJump() {
+      if (currentState === 'JUMP') return;
+      handleEvent('JUMP');
+      isJumping = true;
+      jumpVel = -12;
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Init
+    // ═══════════════════════════════════════════════════
+
+    renderTransitions();
+    updateUI();
+
+    // Auto-log initial state
+    logEntries.push({ from: 'NONE', to: 'IDLE', event: 'INIT', time: new Date() });
+    renderLog();
+
+    updateAnimation();
+  </script>
+</body>
+</html>
