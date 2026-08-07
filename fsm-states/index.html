@@ -89,6 +89,11 @@
     .panel-title {
       padding: 16px 20px; font-size: 12px; font-weight: 600; text-transform: uppercase;
       letter-spacing: 1px; color: var(--text-dim); border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title .hint {
+      font-size: 10px; font-weight: 400; color: var(--text-dim); letter-spacing: 0;
+      text-transform: none;
     }
 
     .canvas-wrap { padding: 0; }
@@ -97,15 +102,19 @@
     /* Current state highlight */
     .state-display {
       display: flex; align-items: center; justify-content: center;
-      gap: 12px; padding: 28px 20px;
+      gap: 12px; padding: 28px 20px; transition: background 0.3s;
+      border-radius: 16px 16px 0 0;
+    }
+    .state-display.flash-invalid {
+      background: rgba(255,107,107,0.08) !important;
+    }
+    .state-display.flash-valid {
+      background: rgba(78,205,196,0.06) !important;
     }
     .state-icon { font-size: 32px; }
     .state-name {
       font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
       transition: color 0.3s;
-    }
-    .state-label {
-      font-size: 11px; color: var(--text-dim); margin-left: 4px; font-family: 'JetBrains Mono', monospace;
     }
 
     /* State buttons */
@@ -116,14 +125,31 @@
       padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.04); color: var(--text-secondary);
       font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', sans-serif; position: relative; outline: none;
     }
-    .btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
-    .btn.idle:hover   { border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
-    .btn.walk:hover   { border-color: rgba(255,217,61,0.3); color: #ffd93d; }
-    .btn.jump:hover   { border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
-    .btn.attack:hover { border-color: rgba(167,139,250,0.3); color: #a78bfa; }
-    .btn.run:hover    { border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
+    .btn:hover:not(.disabled) { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+    .btn.idle:hover:not(.disabled)   { border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
+    .btn.walk:hover:not(.disabled)   { border-color: rgba(255,217,61,0.3); color: #ffd93d; }
+    .btn.jump:hover:not(.disabled)   { border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
+    .btn.attack:hover:not(.disabled) { border-color: rgba(167,139,250,0.3); color: #a78bfa; }
+    .btn.run:hover:not(.disabled)    { border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
+
+    /* Valid indicator dot on button */
+    .btn .dot-valid {
+      position: absolute; top: -3px; right: -3px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5);
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .btn .dot-invalid {
+      position: absolute; top: -3px; right: -3px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #555; opacity: 0; transition: opacity 0.2s;
+    }
+    .btn.valid .dot-valid { opacity: 1; }
+    .btn.invalid .dot-invalid { opacity: 0.5; }
+    .btn.disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn.disabled:hover { background: rgba(255,255,255,0.04); color: var(--text-secondary); }
 
     /* Event log */
     .log-area {
@@ -140,14 +166,7 @@
     .log-entry .arrow { color: #55556a; }
     .log-entry .to { font-weight: 600; }
     .log-entry .evt { color: #a78bfa; }
-
-    /* State legend */
-    .legend {
-      display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px;
-      justify-content: center;
-    }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
-    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .log-entry .time { color: #333350; font-size: 10px; margin-left: 4px; }
 
     /* Transitions panel */
     .transitions-grid {
@@ -156,6 +175,7 @@
     .transition-card {
       padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.02);
       border: 1px solid rgba(255,255,255,0.04); text-align: center;
+      transition: opacity 0.2s, border-color 0.2s;
     }
     .transition-card .from-to {
       font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
@@ -163,6 +183,28 @@
     .transition-card .event {
       font-size: 10px; color: #a78bfa; margin-top: 2px; font-family: 'JetBrains Mono', monospace;
     }
+    .transition-card.active {
+      border-color: rgba(167,139,250,0.3);
+      background: rgba(167,139,250,0.06);
+    }
+    .transition-card.active .from-to { color: var(--text-primary); }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex; gap: 24px; justify-content: center; padding: 12px 20px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim);
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .stats-bar span { display: flex; align-items: center; gap: 4px; }
+    .stats-bar .val { color: var(--text-secondary); font-weight: 500; }
+
+    /* Reset button */
+    .reset-btn {
+      padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03); color: var(--text-dim); font-size: 10px;
+      font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s;
+    }
+    .reset-btn:hover { color: var(--text-secondary); border-color: rgba(255,255,255,0.12); }
 
     /* Back link */
     .back-link {
@@ -171,6 +213,13 @@
       font-size: 13px; transition: color 0.2s; margin-top: 20px;
     }
     .back-link:hover { color: var(--text-primary); }
+
+    /* Key hint */
+    .key-hint {
+      font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-dim);
+      margin-left: 6px; background: rgba(255,255,255,0.04); padding: 1px 5px;
+      border-radius: 3px; border: 1px solid rgba(255,255,255,0.06);
+    }
 
     @media (max-width: 640px) {
       .fsm-layout { grid-template-columns: 1fr; }
@@ -198,7 +247,7 @@
       <!-- Left: Game canvas + state display -->
       <div class="panel">
         <div class="panel-title">Character</div>
-        <div class="state-display">
+        <div class="state-display" id="stateDisplay">
           <span class="state-icon" id="stateIcon">🟢</span>
           <span class="state-name" id="stateName" style="color:#4ecdc4">IDLE</span>
         </div>
@@ -211,13 +260,16 @@
       <div style="display:flex;flex-direction:column;gap:16px;">
         <!-- State buttons -->
         <div class="panel">
-          <div class="panel-title">Input Events</div>
-          <div class="btn-row">
-            <button class="btn idle" data-state="IDLE">⏸ IDLE</button>
-            <button class="btn walk" data-state="WALK">🚶 WALK</button>
-            <button class="btn jump" data-state="JUMP">⬆ JUMP</button>
-            <button class="btn attack" data-state="ATTACK">⚔ ATTACK</button>
-            <button class="btn run" data-state="RUN">💨 RUN</button>
+          <div class="panel-title">
+            Input Events
+            <span class="hint">keys 1–5</span>
+          </div>
+          <div class="btn-row" id="btnRow">
+            <button class="btn idle valid" data-state="IDLE" data-key="1">⏸ IDLE<span class="key-hint">1</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
+            <button class="btn walk" data-state="WALK" data-key="2">🚶 WALK<span class="key-hint">2</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
+            <button class="btn jump" data-state="JUMP" data-key="3">⬆ JUMP<span class="key-hint">3</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
+            <button class="btn attack" data-state="ATTACK" data-key="4">⚔ ATTACK<span class="key-hint">4</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
+            <button class="btn run" data-state="RUN" data-key="5">💨 RUN<span class="key-hint">5</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
           </div>
         </div>
 
@@ -225,12 +277,28 @@
         <div class="panel">
           <div class="panel-title">Valid Transitions</div>
           <div class="transitions-grid" id="transitionsGrid"></div>
+          <div class="stats-bar">
+            <span>transitions: <span class="val" id="totalTrans">0</span></span>
+            <span>state: <span class="val" id="totalStates">0</span></span>
+            <span>log: <span class="val" id="totalLogs">0</span></span>
+          </div>
         </div>
 
         <!-- Log -->
         <div class="panel" style="flex:1;">
-          <div class="panel-title">Transition Log</div>
-          <div class="log-area" id="logArea"></div>
+          <div class="panel-title">
+            Transition Log
+            <button class="reset-btn" id="resetLog">clear</button>
+          </div>
+          <div class="log-area" id="logArea">
+            <div class="log-entry">
+              <span class="from">—</span>
+              <span class="arrow">→</span>
+              <span class="to" style="color:#4ecdc4">IDLE</span>
+              <span style="margin-left:8px;color:#555">[<span class="evt">INIT</span>]</span>
+              <span class="time">0ms</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -244,50 +312,49 @@
     // ═══════════════════════════════════════════════════
 
     const STATES = {
-      IDLE: { color: '#4ecdc4', icon: '🟢', label: 'IDLE' },
-      WALK: { color: '#ffd93d', icon: '🚶', label: 'WALK' },
-      JUMP: { color: '#ff6b6b', icon: '⬆', label: 'JUMP' },
+      IDLE:   { color: '#4ecdc4', icon: '🟢', label: 'IDLE' },
+      WALK:   { color: '#ffd93d', icon: '🚶', label: 'WALK' },
+      JUMP:   { color: '#ff6b6b', icon: '⬆', label: 'JUMP' },
       ATTACK: { color: '#a78bfa', icon: '⚔', label: 'ATTACK' },
-      RUN: { color: '#4ecdc4', icon: '💨', label: 'RUN' }
+      RUN:    { color: '#4ecdc4', icon: '💨', label: 'RUN' }
     };
 
-    // state → event → nextState
+    // state → event → nextState  (15 realistic transitions)
     const TRANSITIONS = {
       IDLE:   { MOVE: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
       WALK:   { IDLE: 'IDLE', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
-      JUMP:   { IDLE: 'IDLE', ATTACK: 'ATTACK' },
+      JUMP:   { IDLE: 'IDLE' },                          // can only land
       ATTACK: { IDLE: 'IDLE', WALK: 'WALK' },
       RUN:    { IDLE: 'IDLE', WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK' }
     };
 
+    // Button event → state mapping
+    const BTN_EVENT = { IDLE: 'IDLE', WALK: 'MOVE', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' };
+
     let currentState = 'IDLE';
     const logEntries = [];
     const MAX_LOG = 50;
+    let transitionCount = 0;
+    let startTime = performance.now();
 
     // ═══════════════════════════════════════════════════
     // FSM Engine
     // ═══════════════════════════════════════════════════
 
-    function changeState(state, event) {
-      if (currentState === state) return;
-      const prev = currentState;
-      currentState = state;
-      logEntry(prev, state, event);
-      updateUI();
-    }
-
     function handleEvent(event) {
-      if (!TRANSITIONS[currentState] || !TRANSITIONS[currentState][event]) {
-        // Invalid transition — flash red briefly
-        flashInvalid();
-        return;
-      }
-      changeState(TRANSITIONS[currentState][event], event);
+      const target = TRANSITIONS[currentState]?.[event];
+      if (!target) { flashInvalid(); return; }
+      const prev = currentState;
+      if (prev === target) { flashInvalid(); return; } // self-loop ignored
+      currentState = target;
+      transitionCount++;
+      logEntry(prev, target, event);
+      updateUI();
+      spawnTransitionBurst(target);
     }
 
     function logEntry(from, to, event) {
-      const entry = { from, to, event, time: new Date() };
-      logEntries.unshift(entry);
+      logEntries.unshift({ from, to, event, elapsed: Math.round(performance.now() - startTime) });
       if (logEntries.length > MAX_LOG) logEntries.pop();
       renderLog();
     }
@@ -302,24 +369,50 @@
       document.getElementById('stateName').style.color = s.color;
       document.getElementById('stateIcon').textContent = s.icon;
 
-      // Highlight active transition cards
-      document.querySelectorAll('.transition-card').forEach(card => {
-        const f = card.dataset.from;
-        const t = card.dataset.to;
-        card.style.opacity = (f === currentState || t === currentState) ? '1' : '0.3';
+      // Highlight transition cards
+      document.querySelectorAll('.transition-card').forEach(c => {
+        c.classList.toggle('active', c.dataset.from === currentState || c.dataset.to === currentState);
       });
+
+      // Update valid/invalid buttons
+      document.querySelectorAll('.btn[data-state]').forEach(btn => {
+        const btnState = btn.dataset.state;
+        const btnEvent = BTN_EVENT[btnState];
+        const isValid = TRANSITIONS[currentState]?.[btnEvent] !== undefined;
+        btn.classList.toggle('valid', isValid);
+        btn.classList.toggle('invalid', !isValid);
+        btn.classList.toggle('disabled', !isValid);
+      });
+
+      // Stats
+      document.getElementById('totalTrans').textContent = Object.values(TRANSITIONS).reduce((s, e) => s + Object.keys(e).length, 0);
+      document.getElementById('totalStates').textContent = Object.keys(STATES).length;
+      document.getElementById('totalLogs').textContent = logEntries.length;
+    }
+
+    function flashInvalid() {
+      const d = document.getElementById('stateDisplay');
+      d.classList.add('flash-invalid');
+      setTimeout(() => d.classList.remove('flash-invalid'), 300);
+    }
+
+    function flashValid() {
+      const d = document.getElementById('stateDisplay');
+      d.classList.add('flash-valid');
+      setTimeout(() => d.classList.remove('flash-valid'), 300);
     }
 
     function renderLog() {
       const area = document.getElementById('logArea');
-      area.innerHTML = logEntries.slice(0, 15).map(e => {
-        const fromColor = STATES[e.from]?.color || '#888';
-        const toColor = STATES[e.to]?.color || '#888';
+      area.innerHTML = logEntries.slice(0, 20).map(e => {
+        const fc = STATES[e.from]?.color || '#888';
+        const tc = STATES[e.to]?.color || '#888';
         return `<div class="log-entry">
-          <span class="from" style="color:${fromColor}">${e.from}</span>
+          <span class="from" style="color:${fc}">${e.from}</span>
           <span class="arrow"> → </span>
-          <span class="to" style="color:${toColor}">${e.to}</span>
+          <span class="to" style="color:${tc}">${e.to}</span>
           <span style="margin-left:8px;color:#555">[<span class="evt">${e.event}</span>]</span>
+          <span class="time">${e.elapsed}ms</span>
         </div>`;
       }).join('');
     }
@@ -352,19 +445,26 @@
     let jumpVel = 0;
     let isJumping = false;
     let walkOffset = 0;
-    let groundY = 220;
+    const groundY = 220;
     let charX = 200;
     let charY = groundY;
+    const startX = 200;
 
     function spawnParticle(x, y, color) {
       particles.push({
-        x, y, vx: (Math.random() - 0.5) * 3, vy: -Math.random() * 2 - 1,
-        life: 1.0, color, size: 2 + Math.random() * 3
+        x, y, vx: (Math.random() - 0.5) * 4, vy: -Math.random() * 3 - 1,
+        life: 1.0, color, size: 2 + Math.random() * 4
       });
     }
 
+    function spawnTransitionBurst(target) {
+      const c = STATES[target]?.color || '#fff';
+      for (let i = 0; i < 8; i++) spawnParticle(charX, charY, c);
+    }
+
     function drawGround() {
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, groundY + 20);
@@ -372,24 +472,42 @@
       ctx.stroke();
 
       for (let x = 0; x < 400; x += 40) {
-        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.fillStyle = 'rgba(255,255,255,0.025)';
         ctx.fillRect(x, groundY + 20, 20, 60);
       }
+      ctx.restore();
     }
 
-    function drawCharacter(s) {
+    function drawCharacter() {
+      const s = STATES[currentState];
       const color = s.color;
-      const glow = s.color + '33';
-      const cx = charX;
+      ctx.save();
+
+      // Horizontal movement for WALK / RUN
+      let dx = 0;
+      if (currentState === 'WALK') {
+        dx = Math.sin(walkOffset * 0.15) * 40;
+      } else if (currentState === 'RUN') {
+        dx = Math.sin(walkOffset * 0.15) * 80;
+      }
+      const cx = startX + dx;
       const cy = charY;
       const bob = Math.sin(animTime * 3) * 2;
 
-      ctx.save();
       ctx.translate(cx, cy + bob);
+
+      // Shadow on ground
+      ctx.save();
+      ctx.scale(1, 0.2);
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath();
+      ctx.arc(0, groundY - cy, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
 
       // Glow
       ctx.shadowColor = color;
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = 25;
 
       // Body
       ctx.fillStyle = color;
@@ -412,7 +530,7 @@
       ctx.arc(6, -4, 1.2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Mouth based on state
+      // Mouth
       ctx.strokeStyle = '#07070f';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -427,9 +545,10 @@
       }
       ctx.stroke();
 
-      // State-specific effects
+      // ── State-specific effects ──
+
+      // RUN: speed lines
       if (currentState === 'RUN') {
-        // Speed lines
         ctx.strokeStyle = 'rgba(78,205,196,0.3)';
         ctx.lineWidth = 2;
         for (let i = 0; i < 3; i++) {
@@ -441,41 +560,46 @@
         }
       }
 
+      // ATTACK: expanding ring
       if (currentState === 'ATTACK') {
         attackFlash = Math.min(attackFlash + 1, 15);
       }
       if (attackFlash > 0) {
-        ctx.fillStyle = `rgba(167,139,250,${attackFlash / 15 * 0.3})`;
+        ctx.fillStyle = `rgba(167,139,250,${attackFlash / 15 * 0.25})`;
         ctx.beginPath();
         ctx.arc(0, 0, 24 + (15 - attackFlash) * 2, 0, Math.PI * 2);
         ctx.fill();
-        attackFlash -= 0.5;
+        attackFlash -= 0.4;
       }
 
+      // JUMP: trail + fire below
       if (currentState === 'JUMP' && isJumping) {
-        ctx.fillStyle = `rgba(255,107,107,${0.3 + Math.sin(animTime * 10) * 0.1})`;
-        for (let i = 0; i < 4; i++) {
-          ctx.beginPath();
-          ctx.arc(-12 + i * 8, 18 + Math.sin(animTime * 8 + i) * 3, 3, 0, Math.PI * 2);
-          ctx.fill();
+        // downward trail particles drawn in drawParticles
+        for (let i = 0; i < 2; i++) {
+          spawnParticle(cx + (Math.random() - 0.5) * 8, cy + 16, '#ff6b6b');
         }
+      }
+
+      // WALK: ground dust
+      if (currentState === 'WALK' && Math.random() < 0.2) {
+        spawnParticle(cx, cy + 16, '#ffd93d');
       }
 
       ctx.restore();
     }
 
-    function updateParticles() {
+    function drawParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.05;
-        p.life -= 0.02;
+        p.vy += 0.06;
+        p.life -= 0.025;
         if (p.life <= 0) { particles.splice(i, 1); continue; }
         ctx.globalAlpha = p.life;
         ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -484,17 +608,20 @@
     function updateAnimation() {
       animTime += 0.016;
 
+      // Walk/run motion
       if (currentState === 'WALK') {
         walkOffset = (walkOffset + 2) % 40;
       } else if (currentState === 'RUN') {
         walkOffset = (walkOffset + 5) % 40;
-        if (Math.random() < 0.15) spawnParticle(charX, charY + 10, '#4ecdc4');
+        if (Math.random() < 0.25) spawnParticle(charX + Math.sin(walkOffset * 0.15) * 80, charY + 12, '#4ecdc4');
       }
 
-      if (currentState === 'ATTACK' && attackFlash < 5) {
-        if (Math.random() < 0.3) spawnParticle(charX + 10, charY, '#a78bfa');
+      // Attack particles
+      if (currentState === 'ATTACK' && attackFlash < 5 && Math.random() < 0.3) {
+        spawnParticle(charX + Math.sin(walkOffset * 0.15) * 40 + 10, charY, '#a78bfa');
       }
 
+      // Jump physics
       if (isJumping) {
         jumpVel += 0.6;
         charY += jumpVel;
@@ -502,12 +629,21 @@
           charY = groundY;
           isJumping = false;
           jumpVel = 0;
+          // Auto-transition JUMP → IDLE on land
+          if (currentState === 'JUMP') {
+            currentState = 'IDLE';
+            transitionCount++;
+            logEntry('JUMP', 'IDLE', 'LAND');
+            updateUI();
+            spawnTransitionBurst('IDLE');
+          }
         }
       }
 
+      ctx.clearRect(0, 0, 400, 280);
       drawGround();
-      drawCharacter(STATES[currentState]);
-      updateParticles();
+      drawCharacter();
+      drawParticles();
 
       requestAnimationFrame(updateAnimation);
     }
@@ -516,40 +652,33 @@
     // Event Handling
     // ═══════════════════════════════════════════════════
 
-    function flashInvalid() {
-      const display = document.querySelector('.state-display');
-      display.style.backgroundColor = 'rgba(255,107,107,0.1)';
-      setTimeout(() => { display.style.backgroundColor = ''; }, 300);
-    }
-
+    // Button clicks
     document.querySelectorAll('.btn[data-state]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const target = btn.dataset.state;
-        handleEvent(target);
-        // Spawn burst on success
-        const color = STATES[currentState]?.color || '#a78bfa';
-        for (let i = 0; i < 6; i++) spawnParticle(charX, charY, color);
+        const btnState = btn.dataset.state;
+        const event = BTN_EVENT[btnState];
+        handleEvent(event);
+        flashValid();
       });
     });
 
-    // Keyboard shortcuts
+    // Keyboard
     document.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
       const keyMap = { '1': 'IDLE', '2': 'WALK', '3': 'JUMP', '4': 'ATTACK', '5': 'RUN' };
       if (keyMap[e.key]) {
-        e.preventDefault();
-        handleEvent(keyMap[e.key]);
-        const color = STATES[currentState]?.color || '#a78bfa';
-        for (let i = 0; i < 6; i++) spawnParticle(charX, charY, color);
+        const event = BTN_EVENT[keyMap[e.key]];
+        handleEvent(event);
+        flashValid();
       }
     });
 
-    // Jump physics
-    function tryJump() {
-      if (currentState === 'JUMP') return;
-      handleEvent('JUMP');
-      isJumping = true;
-      jumpVel = -12;
-    }
+    // Reset log
+    document.getElementById('resetLog').addEventListener('click', () => {
+      logEntries.length = 0;
+      logEntry('—', currentState, 'RESET');
+      renderLog();
+    });
 
     // ═══════════════════════════════════════════════════
     // Init
@@ -557,12 +686,7 @@
 
     renderTransitions();
     updateUI();
-
-    // Auto-log initial state
-    logEntries.push({ from: 'NONE', to: 'IDLE', event: 'INIT', time: new Date() });
-    renderLog();
-
-    updateAnimation();
+    requestAnimationFrame(updateAnimation);
   </script>
 </body>
 </html>
