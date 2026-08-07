@@ -657,7 +657,13 @@
       btn.addEventListener('click', () => {
         const btnState = btn.dataset.state;
         const event = BTN_EVENT[btnState];
+        const prevState = currentState;
         handleEvent(event);
+        // Trigger jump physics when transitioning TO JUMP
+        if (currentState === 'JUMP' && prevState !== 'JUMP') {
+          isJumping = true;
+          jumpVel = -12;
+        }
         flashValid();
       });
     });
