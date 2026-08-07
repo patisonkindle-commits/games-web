@@ -319,7 +319,7 @@
       RUN:    { color: '#4ecdc4', icon: '💨', label: 'RUN' }
     };
 
-    // state → event → nextState  (14 realistic transitions)
+    // state → event → nextState  (15 realistic transitions)
     const TRANSITIONS = {
       IDLE:   { WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
       WALK:   { IDLE: 'IDLE', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
