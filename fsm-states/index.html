@@ -319,17 +319,17 @@
       RUN:    { color: '#4ecdc4', icon: '💨', label: 'RUN' }
     };
 
-    // state → event → nextState  (15 realistic transitions)
+    // state → event → nextState  (14 realistic transitions)
     const TRANSITIONS = {
-      IDLE:   { MOVE: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
+      IDLE:   { WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
       WALK:   { IDLE: 'IDLE', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
       JUMP:   { IDLE: 'IDLE' },                          // can only land
       ATTACK: { IDLE: 'IDLE', WALK: 'WALK' },
       RUN:    { IDLE: 'IDLE', WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK' }
     };
 
-    // Button event → state mapping
-    const BTN_EVENT = { IDLE: 'IDLE', WALK: 'MOVE', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' };
+    // Button state → event (1:1 — button name = event name)
+    const BTN_EVENT = { IDLE: 'IDLE', WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' };
 
     let currentState = 'IDLE';
     const logEntries = [];
