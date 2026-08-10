@@ -3,696 +3,480 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Finite State Machine Demo</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <title>Finite State Machine — Predator/Prey</title>
   <style>
+    /* (keep existing styles) */
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --bg-deep: #07070f;
-      --text-primary: #e8e8f0;
-      --text-secondary: #8888a0;
-      --text-dim: #55556a;
-      --accent-idle: #4ecdc4;
-      --accent-walk: #ffd93d;
-      --accent-jump: #ff6b6b;
-      --accent-attack: #a78bfa;
-      --accent-run: #4ecdc4;
-      --card-bg: rgba(255,255,255,0.04);
-      --border-card: rgba(255,255,255,0.06);
-    }
-
-    body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: var(--bg-deep);
-      color: var(--text-primary);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    .bg-canvas {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      z-index: 0; overflow: hidden; pointer-events: none;
-    }
-    .bg-canvas .orb {
-      position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.12;
-      animation: orbFloat 20s ease-in-out infinite;
-    }
-    .bg-canvas .orb:nth-child(1) { width: 500px; height: 500px; background: #a78bfa; top: -10%; left: -5%; animation-delay: 0s; }
-    .bg-canvas .orb:nth-child(2) { width: 400px; height: 400px; background: #ff6b6b; bottom: -5%; right: -5%; animation-delay: -7s; }
-    .bg-canvas .orb:nth-child(3) { width: 350px; height: 350px; background: #4ecdc4; top: 40%; left: 50%; animation-delay: -14s; }
-    @keyframes orbFloat {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      33% { transform: translate(60px, -40px) scale(1.05); }
-      66% { transform: translate(-30px, 50px) scale(0.95); }
-    }
-
-    .bg-grid {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      z-index: 1; pointer-events: none;
-      background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
-      background-size: 60px 60px;
-    }
-
-    .container {
-      position: relative; z-index: 2;
-      max-width: 1100px; margin: 0 auto; padding: 48px 24px 60px;
-    }
-
-    header { text-align: center; margin-bottom: 40px; }
-    header .badge {
-      display: inline-block; padding: 6px 16px; border-radius: 100px;
-      background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.2);
-      font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: #a78bfa;
-      margin-bottom: 16px; text-transform: uppercase;
-    }
-    header h1 {
-      font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: -1.5px;
-      background: linear-gradient(135deg, #f0f0ff 0%, #a78bfa 50%, #ff6b6b 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      line-height: 1.15;
-    }
-    header p { color: var(--text-secondary); font-size: 15px; margin-top: 10px; }
-
-    .fsm-layout {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;
-    }
-
-    .panel {
-      border-radius: 16px; background: var(--card-bg); border: 1px solid var(--border-card);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow: hidden;
-    }
-
-    .panel-title {
-      padding: 16px 20px; font-size: 12px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 1px; color: var(--text-dim); border-bottom: 1px solid rgba(255,255,255,0.04);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .panel-title .hint {
-      font-size: 10px; font-weight: 400; color: var(--text-dim); letter-spacing: 0;
-      text-transform: none;
-    }
-
-    .canvas-wrap { padding: 0; }
-    .canvas-wrap canvas { display: block; width: 100%; height: auto; }
-
-    /* Current state highlight */
-    .state-display {
-      display: flex; align-items: center; justify-content: center;
-      gap: 12px; padding: 28px 20px; transition: background 0.3s;
-      border-radius: 16px 16px 0 0;
-    }
-    .state-display.flash-invalid {
-      background: rgba(255,107,107,0.08) !important;
-    }
-    .state-display.flash-valid {
-      background: rgba(78,205,196,0.06) !important;
-    }
-    .state-icon { font-size: 32px; }
-    .state-name {
-      font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
-      transition: color 0.3s;
-    }
-
-    /* State buttons */
-    .btn-row {
-      display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 20px; justify-content: center;
-    }
-    .btn {
-      padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.04); color: var(--text-secondary);
-      font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;
-      font-family: 'Inter', sans-serif; position: relative; outline: none;
-    }
-    .btn:hover:not(.disabled) { background: rgba(255,255,255,0.08); color: var(--text-primary); }
-    .btn.idle:hover:not(.disabled)   { border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
-    .btn.walk:hover:not(.disabled)   { border-color: rgba(255,217,61,0.3); color: #ffd93d; }
-    .btn.jump:hover:not(.disabled)   { border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
-    .btn.attack:hover:not(.disabled) { border-color: rgba(167,139,250,0.3); color: #a78bfa; }
-    .btn.run:hover:not(.disabled)    { border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
-
-    /* Valid indicator dot on button */
-    .btn .dot-valid {
-      position: absolute; top: -3px; right: -3px;
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5);
-      opacity: 0; transition: opacity 0.2s;
-    }
-    .btn .dot-invalid {
-      position: absolute; top: -3px; right: -3px;
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #555; opacity: 0; transition: opacity 0.2s;
-    }
-    .btn.valid .dot-valid { opacity: 1; }
-    .btn.invalid .dot-invalid { opacity: 0.5; }
-    .btn.disabled { opacity: 0.35; cursor: not-allowed; }
-    .btn.disabled:hover { background: rgba(255,255,255,0.04); color: var(--text-secondary); }
-
-    /* Event log */
-    .log-area {
-      max-height: 200px; overflow-y: auto; padding: 12px 20px;
-      font-family: 'JetBrains Mono', monospace; font-size: 11px;
-    }
-    .log-area::-webkit-scrollbar { width: 4px; }
-    .log-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-    .log-entry {
-      padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.02);
-      color: var(--text-dim); line-height: 1.5;
-    }
-    .log-entry .from { color: #8888a0; }
-    .log-entry .arrow { color: #55556a; }
-    .log-entry .to { font-weight: 600; }
-    .log-entry .evt { color: #a78bfa; }
-    .log-entry .time { color: #333350; font-size: 10px; margin-left: 4px; }
-
-    /* Transitions panel */
-    .transitions-grid {
-      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px 20px;
-    }
-    .transition-card {
-      padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.04); text-align: center;
-      transition: opacity 0.2s, border-color 0.2s;
-    }
-    .transition-card .from-to {
-      font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
-    }
-    .transition-card .event {
-      font-size: 10px; color: #a78bfa; margin-top: 2px; font-family: 'JetBrains Mono', monospace;
-    }
-    .transition-card.active {
-      border-color: rgba(167,139,250,0.3);
-      background: rgba(167,139,250,0.06);
-    }
-    .transition-card.active .from-to { color: var(--text-primary); }
-
-    /* Stats bar */
-    .stats-bar {
-      display: flex; gap: 24px; justify-content: center; padding: 12px 20px;
-      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim);
-      border-top: 1px solid rgba(255,255,255,0.04);
-    }
-    .stats-bar span { display: flex; align-items: center; gap: 4px; }
-    .stats-bar .val { color: var(--text-secondary); font-weight: 500; }
-
-    /* Reset button */
-    .reset-btn {
-      padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);
-      background: rgba(255,255,255,0.03); color: var(--text-dim); font-size: 10px;
-      font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s;
-    }
-    .reset-btn:hover { color: var(--text-secondary); border-color: rgba(255,255,255,0.12); }
-
-    /* Back link */
-    .back-link {
-      display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
-      border-radius: 10px; color: var(--text-secondary); text-decoration: none;
-      font-size: 13px; transition: color 0.2s; margin-top: 20px;
-    }
-    .back-link:hover { color: var(--text-primary); }
-
-    /* Key hint */
-    .key-hint {
-      font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-dim);
-      margin-left: 6px; background: rgba(255,255,255,0.04); padding: 1px 5px;
-      border-radius: 3px; border: 1px solid rgba(255,255,255,0.06);
-    }
-
-    @media (max-width: 640px) {
-      .fsm-layout { grid-template-columns: 1fr; }
-      .container { padding: 24px 12px 40px; }
-    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+    h1 { text-align: center; margin-bottom: 8px; font-size: 28px; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+    .game-panel { background: #252542; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .game-panel h3 { margin-bottom: 12px; color: #a0a0ff; }
+    .canvas-wrap { display: flex; justify-content: center; }
+    canvas { border: 2px solid #444; border-radius: 8px; background: #0f0f1f; }
+    .controls { text-align: center; margin-top: 16px; }
+    button { padding: 8px 16px; margin: 0 4px; border: 1px solid #555; background: #333; color: #fff; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #444; }
+    .btn-power { background: #ff6b6b; border-color: #ff6b6b; }
+    .btn-power:hover { background: #ff4444; }
+    .info { text-align: center; color: #666; font-size: 13px; margin-top: 12px; }
+    .stats { display: flex; justify-content: space-around; margin-top: 16px; padding: 12px; background: #1a1a2e; border-radius: 8px; }
+    .stat { text-align: center; }
+    .stat-label { color: #888; font-size: 12px; }
+    .stat-value { font-size: 18px; font-weight: bold; margin-top: 4px; }
+    .log { max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; background: #0f0f1f; padding: 12px; border-radius: 8px; }
+    .log-entry { padding: 4px 0; border-bottom: 1px solid #222; }
+    .log-entry .from { color: #4ecdc4; }
+    .log-entry .to { color: #ff6b6b; }
+    .log-entry .evt { color: #ffd93d; }
+    .legend { margin-top: 16px; padding: 12px; background: #252542; border-radius: 8px; }
+    .legend h4 { margin-bottom: 8px; color: #a0a0ff; }
+    .legend-item { display: flex; align-items: center; margin: 6px 0; }
+    .legend-color { width: 16px; height: 16px; border-radius: 50%; margin-right: 8px; }
+    .legend-text { font-size: 13px; }
   </style>
 </head>
 <body>
-
-  <div class="bg-canvas">
-    <div class="orb"></div>
-    <div class="orb"></div>
-    <div class="orb"></div>
-  </div>
-  <div class="bg-grid"></div>
-
   <div class="container">
-    <header>
-      <div class="badge">🧠 AI Fundamentals</div>
-      <h1>Finite State Machine</h1>
-      <p>Interactive state machine with visual transitions &amp; event log</p>
-    </header>
+    <h1>Finite State Machine — Predator/Prey</h1>
+    <p class="subtitle">Cat (monster) chases mouse (player) — power up to escape!</p>
 
-    <div class="fsm-layout">
-      <!-- Left: Game canvas + state display -->
-      <div class="panel">
-        <div class="panel-title">Character</div>
-        <div class="state-display" id="stateDisplay">
-          <span class="state-icon" id="stateIcon">🟢</span>
-          <span class="state-name" id="stateName" style="color:#4ecdc4">IDLE</span>
-        </div>
-        <div class="canvas-wrap">
-          <canvas id="gameCanvas" width="400" height="280"></canvas>
-        </div>
+    <div class="game-panel">
+      <h3>Game Canvas</h3>
+      <div class="canvas-wrap">
+        <canvas id="gameCanvas" width="1000" height="600"></canvas>
       </div>
-
-      <!-- Right: Controls + transitions + log -->
-      <div style="display:flex;flex-direction:column;gap:16px;">
-        <!-- State buttons -->
-        <div class="panel">
-          <div class="panel-title">
-            Input Events
-            <span class="hint">keys 1–5</span>
-          </div>
-          <div class="btn-row" id="btnRow">
-            <button class="btn idle valid" data-state="IDLE" data-key="1">⏸ IDLE<span class="key-hint">1</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
-            <button class="btn walk" data-state="WALK" data-key="2">🚶 WALK<span class="key-hint">2</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
-            <button class="btn jump" data-state="JUMP" data-key="3">⬆ JUMP<span class="key-hint">3</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
-            <button class="btn attack" data-state="ATTACK" data-key="4">⚔ ATTACK<span class="key-hint">4</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
-            <button class="btn run" data-state="RUN" data-key="5">💨 RUN<span class="key-hint">5</span><span class="dot-valid"></span><span class="dot-invalid"></span></button>
-          </div>
-        </div>
-
-        <!-- Transition table -->
-        <div class="panel">
-          <div class="panel-title">Valid Transitions</div>
-          <div class="transitions-grid" id="transitionsGrid"></div>
-          <div class="stats-bar">
-            <span>transitions: <span class="val" id="totalTrans">0</span></span>
-            <span>state: <span class="val" id="totalStates">0</span></span>
-            <span>log: <span class="val" id="totalLogs">0</span></span>
-          </div>
-        </div>
-
-        <!-- Log -->
-        <div class="panel" style="flex:1;">
-          <div class="panel-title">
-            Transition Log
-            <button class="reset-btn" id="resetLog">clear</button>
-          </div>
-          <div class="log-area" id="logArea">
-            <div class="log-entry">
-              <span class="from">—</span>
-              <span class="arrow">→</span>
-              <span class="to" style="color:#4ecdc4">IDLE</span>
-              <span style="margin-left:8px;color:#555">[<span class="evt">INIT</span>]</span>
-              <span class="time">0ms</span>
-            </div>
-          </div>
-        </div>
+      <div class="controls">
+        <button class="btn-power" id="powerBtn">⚡ POWER UP (1)</button>
+        <button id="resetBtn">↻ Reset</button>
+      </div>
+      <div class="info">
+        Arrow keys: move mouse | 1: toggle power | Space: pause
       </div>
     </div>
 
-    <a class="back-link" href="../">← Back to All Demos</a>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">State</div>
+        <div class="stat-value" id="stateValue">IDLE</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Dist to Cat</div>
+        <div class="stat-value" id="distValue">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Power</div>
+        <div class="stat-value" id="powerValue">OFF</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Kills</div>
+        <div class="stat-value" id="killsValue">0</div>
+      </div>
+    </div>
+
+    <div class="game-panel" style="margin-top: 20px;">
+      <h3>State Log</h3>
+      <div class="log" id="log"></div>
+    </div>
+
+    <div class="legend">
+      <h4>State Legend (from Monster.cs C# code)</h4>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #4ecdc4;"></div>
+        <span class="legend-text"><b>IDLE</b> — Cat patrols waypoints. Chases when mouse is close.</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #ff6b6b;"></div>
+        <span class="legend-text"><b>CHASE</b> — Cat runs toward mouse. Collides to kill.</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #ffd93d;"></div>
+        <span class="legend-text"><b>EVADE</b> — Cat runs away from mouse (when powered).</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #a78bfa;"></div>
+        <span class="legend-text"><b>DIE</b> — Collision or out of bounds. Respawn after delay.</span>
+      </div>
+    </div>
   </div>
 
   <script>
     // ═══════════════════════════════════════════════════
-    // Finite State Machine
-    // ═══════════════════════════════════════════════════
-
-    const STATES = {
-      IDLE:   { color: '#4ecdc4', icon: '🟢', label: 'IDLE' },
-      WALK:   { color: '#ffd93d', icon: '🚶', label: 'WALK' },
-      JUMP:   { color: '#ff6b6b', icon: '⬆', label: 'JUMP' },
-      ATTACK: { color: '#a78bfa', icon: '⚔', label: 'ATTACK' },
-      RUN:    { color: '#4ecdc4', icon: '💨', label: 'RUN' }
-    };
-
-    // state → event → nextState  (15 realistic transitions)
-    const TRANSITIONS = {
-      IDLE:   { WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
-      WALK:   { IDLE: 'IDLE', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' },
-      JUMP:   { IDLE: 'IDLE' },                          // can only land
-      ATTACK: { IDLE: 'IDLE', WALK: 'WALK' },
-      RUN:    { IDLE: 'IDLE', WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK' }
-    };
-
-    // Button state → event (1:1 — button name = event name)
-    const BTN_EVENT = { IDLE: 'IDLE', WALK: 'WALK', JUMP: 'JUMP', ATTACK: 'ATTACK', RUN: 'RUN' };
-
-    let currentState = 'IDLE';
-    const logEntries = [];
-    const MAX_LOG = 50;
-    let transitionCount = 0;
-    let startTime = performance.now();
-
-    // ═══════════════════════════════════════════════════
-    // FSM Engine
-    // ═══════════════════════════════════════════════════
-
-    function handleEvent(event) {
-      const target = TRANSITIONS[currentState]?.[event];
-      if (!target) { flashInvalid(); return; }
-      const prev = currentState;
-      if (prev === target) { flashInvalid(); return; } // self-loop ignored
-      currentState = target;
-      transitionCount++;
-      logEntry(prev, target, event);
-      updateUI();
-      spawnTransitionBurst(target);
-    }
-
-    function logEntry(from, to, event) {
-      logEntries.unshift({ from, to, event, elapsed: Math.round(performance.now() - startTime) });
-      if (logEntries.length > MAX_LOG) logEntries.pop();
-      renderLog();
-    }
-
-    // ═══════════════════════════════════════════════════
-    // UI Updates
-    // ═══════════════════════════════════════════════════
-
-    function updateUI() {
-      const s = STATES[currentState];
-      document.getElementById('stateName').textContent = s.label;
-      document.getElementById('stateName').style.color = s.color;
-      document.getElementById('stateIcon').textContent = s.icon;
-
-      // Highlight transition cards
-      document.querySelectorAll('.transition-card').forEach(c => {
-        c.classList.toggle('active', c.dataset.from === currentState || c.dataset.to === currentState);
-      });
-
-      // Update valid/invalid buttons
-      document.querySelectorAll('.btn[data-state]').forEach(btn => {
-        const btnState = btn.dataset.state;
-        const btnEvent = BTN_EVENT[btnState];
-        const isValid = TRANSITIONS[currentState]?.[btnEvent] !== undefined;
-        btn.classList.toggle('valid', isValid);
-        btn.classList.toggle('invalid', !isValid);
-        btn.classList.toggle('disabled', !isValid);
-      });
-
-      // Stats
-      document.getElementById('totalTrans').textContent = Object.values(TRANSITIONS).reduce((s, e) => s + Object.keys(e).length, 0);
-      document.getElementById('totalStates').textContent = Object.keys(STATES).length;
-      document.getElementById('totalLogs').textContent = logEntries.length;
-    }
-
-    function flashInvalid() {
-      const d = document.getElementById('stateDisplay');
-      d.classList.add('flash-invalid');
-      setTimeout(() => d.classList.remove('flash-invalid'), 300);
-    }
-
-    function flashValid() {
-      const d = document.getElementById('stateDisplay');
-      d.classList.add('flash-valid');
-      setTimeout(() => d.classList.remove('flash-valid'), 300);
-    }
-
-    function renderLog() {
-      const area = document.getElementById('logArea');
-      area.innerHTML = logEntries.slice(0, 20).map(e => {
-        const fc = STATES[e.from]?.color || '#888';
-        const tc = STATES[e.to]?.color || '#888';
-        return `<div class="log-entry">
-          <span class="from" style="color:${fc}">${e.from}</span>
-          <span class="arrow"> → </span>
-          <span class="to" style="color:${tc}">${e.to}</span>
-          <span style="margin-left:8px;color:#555">[<span class="evt">${e.event}</span>]</span>
-          <span class="time">${e.elapsed}ms</span>
-        </div>`;
-      }).join('');
-    }
-
-    function renderTransitions() {
-      const grid = document.getElementById('transitionsGrid');
-      let html = '';
-      for (const [from, events] of Object.entries(TRANSITIONS)) {
-        for (const [event, to] of Object.entries(events)) {
-          html += `<div class="transition-card" data-from="${from}" data-to="${to}">
-            <div class="from-to">${from} → ${to}</div>
-            <div class="event">on ${event}</div>
-          </div>`;
-        }
-      }
-      grid.innerHTML = html;
-      updateUI();
-    }
-
-    // ═══════════════════════════════════════════════════
-    // Canvas Rendering
+    // Finite State Machine — Predator/Prey Demo
+    // Mirrors Monster.cs C# game AI logic
     // ═══════════════════════════════════════════════════
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
 
-    let animTime = 0;
-    let particles = [];
-    let attackFlash = 0;
-    let jumpVel = 0;
-    let isJumping = false;
-    let walkOffset = 0;
-    const groundY = 220;
-    let charX = 200;
-    let charY = groundY;
-    const startX = 200;
+    // State constants
+    const IDLE = 0, CHASE = 1, EVADE = 2, DIE = 4;
+    const STATE_NAMES = { [IDLE]: 'IDLE', [CHASE]: 'CHASE', [EVADE]: 'EVADE', [DIE]: 'DIE' };
+    const STATE_COLORS = { [IDLE]: '#4ecdc4', [CHASE]: '#ff6b6b', [EVADE]: '#ffd93d', [DIE]: '#a78bfa' };
 
-    function spawnParticle(x, y, color) {
-      particles.push({
-        x, y, vx: (Math.random() - 0.5) * 4, vy: -Math.random() * 3 - 1,
-        life: 1.0, color, size: 2 + Math.random() * 4
+    // Game parameters (Monster.cs)
+    const PATROL_SPEED = 1;
+    const CHASE_SPEED = 2;
+    const EVADE_SPEED = 1.5;
+    const DETECTION_RANGE = 150;      // px
+    const COLLISION_RANGE = 25;       // px
+    const DIE_TIMEOUT = 1000;         // ms
+    const RESPAWN_RANGE = 400;        // px from center
+    const WAYPOINTS = 4;
+
+    // Entities
+    const monster = {
+      x: W/2, y: H/2,
+      speed: PATROL_SPEED,
+      state: IDLE,
+      waypointIndex: 0,
+      waypoints: [],
+      showState: 'IDLE'
+    };
+
+    const player = {
+      x: W - 100, y: H - 100,
+      speed: CHASE_SPEED,
+      powerUp: false,
+      keys: {}
+    };
+
+    // State management
+    let state = IDLE;
+    let kills = 0;
+    let stateHistory = [];
+    const MAX_LOG = 50;
+
+    // Timers
+    let dieTimer = 0;
+    let lastStateChange = Date.now();
+
+    // ═══════════════════════════════════════════════════
+    // Initialize waypoints
+    // ═══════════════════════════════════════════════════
+    function initWaypoints() {
+      const cx = W/2, cy = H/2;
+      const offsets = [
+        { x: -200, y: -150 },
+        { x:  200, y: -150 },
+        { x:  200, y:  150 },
+        { x: -200, y:  150 }
+      ];
+      monster.waypoints = offsets.map(o => ({ x: cx + o.x, y: cy + o.y }));
+    }
+
+    // ═══════════════════════════════════════════════════
+    // State transitions
+    // ═══════════════════════════════════════════════════
+    function setState(newState) {
+      const prevState = state;
+      if (prevState === newState) return;
+      state = newState;
+      lastStateChange = Date.now();
+      stateHistory.push({ from: prevState, to: newState, time: Date.now() - startTime });
+      if (stateHistory.length > MAX_LOG) stateHistory.shift();
+      updateUI();
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Collision detection
+    // ═══════════════════════════════════════════════════
+    function getDistance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function isInCollision() {
+      return getDistance(monster, player) < COLLISION_RANGE;
+    }
+
+    function isInDetection() {
+      return getDistance(monster, player) < DETECTION_RANGE;
+    }
+
+    // ═══════════════════════════════════════════════════
+    // State logic (Monster.cs Update)
+    // ═══════════════════════════════════════════════════
+    function updateState() {
+      const now = Date.now();
+      const dist = getDistance(monster, player);
+
+      // State transitions (matches Monster.cs logic)
+      switch (state) {
+        case IDLE:
+          // Patrol waypoints
+          monster.speed = PATROL_SPEED;
+          moveToWaypoint();
+          // Transition to CHASE when close and not powered
+          if (isInDetection() && !player.powerUp) {
+            setState(CHASE);
+          }
+          break;
+
+        case CHASE:
+          // Chase toward player
+          monster.speed = CHASE_SPEED;
+          moveTowardPlayer();
+          // Collision kills
+          if (isInCollision()) {
+            setState(DIE);
+            dieTimer = now;
+          }
+          // Transition to EVADE when powered
+          if (player.powerUp && isInDetection()) {
+            setState(EVADE);
+          }
+          break;
+
+        case EVADE:
+          // Run away from player
+          monster.speed = EVADE_SPEED;
+          moveAwayFromPlayer();
+          // Collision kills
+          if (isInCollision()) {
+            setState(DIE);
+            dieTimer = now;
+          }
+          // Transition to IDLE when out of range
+          if (!isInDetection()) {
+            setState(IDLE);
+          }
+          break;
+
+        case DIE:
+          // Respawn after timeout
+          if (now - dieTimer > DIE_TIMEOUT) {
+            monster.x = W/2 + (Math.random() - 0.5) * RESPAWN_RANGE;
+            monster.y = H/2 + (Math.random() - 0.5) * RESPAWN_RANGE;
+            monster.waypointIndex = 0;
+            monster.state = IDLE;
+            setState(IDLE);
+          }
+          break;
+      }
+
+      // Boundary check (Monster.cs out of bounds)
+      if (monster.x < 0 || monster.x > W || monster.y < 0 || monster.y > H) {
+        setState(DIE);
+        dieTimer = now;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Movement helpers
+    // ═══════════════════════════════════════════════════
+    function moveToWaypoint() {
+      const wp = monster.waypoints[monster.waypointIndex % WAYPOINTS];
+      const dx = wp.x - monster.x;
+      const dy = wp.y - monster.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 5) {
+        monster.waypointIndex = (monster.waypointIndex + 1) % WAYPOINTS;
+      } else {
+        monster.x += (dx / dist) * monster.speed;
+        monster.y += (dy / dist) * monster.speed;
+      }
+    }
+
+    function moveTowardPlayer() {
+      const dx = player.x - monster.x;
+      const dy = player.y - monster.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        monster.x += (dx / dist) * monster.speed;
+        monster.y += (dy / dist) * monster.speed;
+      }
+    }
+
+    function moveAwayFromPlayer() {
+      const dx = monster.x - player.x;
+      const dy = monster.y - player.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        monster.x += (dx / dist) * monster.speed;
+        monster.y += (dy / dist) * monster.speed;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Player movement
+    // ═══════════════════════════════════════════════════
+    function updatePlayer() {
+      const speed = player.speed;
+      if (player.keys['ArrowLeft']) player.x -= speed;
+      if (player.keys['ArrowRight']) player.x += speed;
+      if (player.keys['ArrowUp']) player.y -= speed;
+      if (player.keys['ArrowDown']) player.y += speed;
+      // Keep in bounds
+      player.x = Math.max(10, Math.min(W - 10, player.x));
+      player.y = Math.max(10, Math.min(H - 10, player.y));
+    }
+
+    // ═══════════════════════════════════════════════════
+    // Render
+    // ═══════════════════════════════════════════════════
+    let startTime = Date.now();
+    function render() {
+      // Clear
+      ctx.fillStyle = '#0f0f1f';
+      ctx.fillRect(0, 0, W, H);
+
+      // Grid
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = 0; y < H; y += 50) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+
+      // Waypoints
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      monster.waypoints.forEach((wp, i) => {
+        ctx.beginPath();
+        ctx.arc(wp.x, wp.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#666';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(i, wp.x - 3, wp.y + 4);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
       });
-    }
 
-    function spawnTransitionBurst(target) {
-      const c = STATES[target]?.color || '#fff';
-      for (let i = 0; i < 8; i++) spawnParticle(charX, charY, c);
-    }
+      // Detection circle
+      ctx.strokeStyle = player.powerUp ? 'rgba(78,205,196,0.3)' : 'rgba(255,107,107,0.3)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(monster.x, monster.y, DETECTION_RANGE, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-    function drawGround() {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      // Collision circle
+      ctx.strokeStyle = 'rgba(255,107,107,0.5)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0, groundY + 20);
-      ctx.lineTo(400, groundY + 20);
+      ctx.arc(monster.x, monster.y, COLLISION_RANGE, 0, Math.PI * 2);
       ctx.stroke();
 
-      for (let x = 0; x < 400; x += 40) {
-        ctx.fillStyle = 'rgba(255,255,255,0.025)';
-        ctx.fillRect(x, groundY + 20, 20, 60);
-      }
-      ctx.restore();
-    }
-
-    function drawCharacter() {
-      const s = STATES[currentState];
-      const color = s.color;
-      ctx.save();
-
-      // Horizontal movement for WALK / RUN
-      let dx = 0;
-      if (currentState === 'WALK') {
-        dx = Math.sin(walkOffset * 0.15) * 40;
-      } else if (currentState === 'RUN') {
-        dx = Math.sin(walkOffset * 0.15) * 80;
-      }
-      const cx = startX + dx;
-      const cy = charY;
-      const bob = Math.sin(animTime * 3) * 2;
-
-      ctx.translate(cx, cy + bob);
-
-      // Shadow on ground
-      ctx.save();
-      ctx.scale(1, 0.2);
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      // Monster (cat)
+      ctx.fillStyle = STATE_COLORS[state];
+      ctx.shadowColor = STATE_COLORS[state];
+      ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(0, groundY - cy, 16, 0, Math.PI * 2);
+      ctx.arc(monster.x, monster.y, 12, 0, Math.PI * 2);
       ctx.fill();
-      ctx.restore();
-
-      // Glow
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 25;
-
-      // Body
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(0, 0, 16, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eyes
       ctx.shadowBlur = 0;
-      ctx.fillStyle = '#07070f';
-      ctx.beginPath();
-      ctx.arc(-5, -3, 3, 0, Math.PI * 2);
-      ctx.arc(5, -3, 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Pupils
       ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🐱', monster.x, monster.y + 4);
+
+      // Player (mouse)
+      ctx.fillStyle = player.powerUp ? '#00ff88' : '#00d9ff';
+      ctx.shadowColor = player.powerUp ? '#00ff88' : '#00d9ff';
+      ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(-4, -4, 1.2, 0, Math.PI * 2);
-      ctx.arc(6, -4, 1.2, 0, Math.PI * 2);
+      ctx.arc(player.x, player.y, 10, 0, Math.PI * 2);
       ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('🐭', player.x, player.y + 4);
 
-      // Mouth
-      ctx.strokeStyle = '#07070f';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      if (currentState === 'ATTACK') {
-        ctx.arc(0, 4, 5, 0, Math.PI);
-      } else if (currentState === 'JUMP') {
-        ctx.arc(0, 6, 4, 0, Math.PI);
-      } else if (currentState === 'RUN') {
-        ctx.moveTo(-4, 5); ctx.lineTo(4, 5);
-      } else {
-        ctx.arc(0, 5, 3, 0.1 * Math.PI, 0.9 * Math.PI);
-      }
-      ctx.stroke();
+      // State indicator
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('State: ' + STATE_NAMES[state], 10, 25);
 
-      // ── State-specific effects ──
+      // Distance
+      ctx.fillText('Dist: ' + Math.round(getDistance(monster, player)), 10, 45);
 
-      // RUN: speed lines
-      if (currentState === 'RUN') {
-        ctx.strokeStyle = 'rgba(78,205,196,0.3)';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i++) {
-          const ly = -8 + i * 6;
-          ctx.beginPath();
-          ctx.moveTo(-20, ly);
-          ctx.lineTo(-35 - i * 5, ly);
-          ctx.stroke();
-        }
-      }
-
-      // ATTACK: expanding ring
-      if (currentState === 'ATTACK') {
-        attackFlash = Math.min(attackFlash + 1, 15);
-      }
-      if (attackFlash > 0) {
-        ctx.fillStyle = `rgba(167,139,250,${attackFlash / 15 * 0.25})`;
-        ctx.beginPath();
-        ctx.arc(0, 0, 24 + (15 - attackFlash) * 2, 0, Math.PI * 2);
-        ctx.fill();
-        attackFlash -= 0.4;
-      }
-
-      // JUMP: trail + fire below
-      if (currentState === 'JUMP' && isJumping) {
-        // downward trail particles drawn in drawParticles
-        for (let i = 0; i < 2; i++) {
-          spawnParticle(cx + (Math.random() - 0.5) * 8, cy + 16, '#ff6b6b');
-        }
-      }
-
-      // WALK: ground dust
-      if (currentState === 'WALK' && Math.random() < 0.2) {
-        spawnParticle(cx, cy + 16, '#ffd93d');
-      }
-
-      ctx.restore();
-    }
-
-    function drawParticles() {
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.06;
-        p.life -= 0.025;
-        if (p.life <= 0) { particles.splice(i, 1); continue; }
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    }
-
-    function updateAnimation() {
-      animTime += 0.016;
-
-      // Walk/run motion
-      if (currentState === 'WALK') {
-        walkOffset = (walkOffset + 2) % 40;
-      } else if (currentState === 'RUN') {
-        walkOffset = (walkOffset + 5) % 40;
-        if (Math.random() < 0.25) spawnParticle(charX + Math.sin(walkOffset * 0.15) * 80, charY + 12, '#4ecdc4');
-      }
-
-      // Attack particles
-      if (currentState === 'ATTACK' && attackFlash < 5 && Math.random() < 0.3) {
-        spawnParticle(charX + Math.sin(walkOffset * 0.15) * 40 + 10, charY, '#a78bfa');
-      }
-
-      // Jump physics
-      if (isJumping) {
-        jumpVel += 0.6;
-        charY += jumpVel;
-        if (charY >= groundY) {
-          charY = groundY;
-          isJumping = false;
-          jumpVel = 0;
-          // Auto-transition JUMP → IDLE on land
-          if (currentState === 'JUMP') {
-            currentState = 'IDLE';
-            transitionCount++;
-            logEntry('JUMP', 'IDLE', 'LAND');
-            updateUI();
-            spawnTransitionBurst('IDLE');
-          }
-        }
-      }
-
-      ctx.clearRect(0, 0, 400, 280);
-      drawGround();
-      drawCharacter();
-      drawParticles();
-
-      requestAnimationFrame(updateAnimation);
+      // Power
+      ctx.fillStyle = player.powerUp ? '#00ff88' : '#ff6b6b';
+      ctx.fillText('Power: ' + (player.powerUp ? 'ON' : 'OFF'), 10, 65);
     }
 
     // ═══════════════════════════════════════════════════
-    // Event Handling
+    // UI updates
     // ═══════════════════════════════════════════════════
+    function updateUI() {
+      document.getElementById('stateValue').textContent = STATE_NAMES[state];
+      document.getElementById('stateValue').style.color = STATE_COLORS[state];
+      document.getElementById('distValue').textContent = Math.round(getDistance(monster, player));
+      document.getElementById('powerValue').textContent = player.powerUp ? 'ON' : 'OFF';
+      document.getElementById('powerValue').style.color = player.powerUp ? '#00ff88' : '#ff6b6b';
+      document.getElementById('killsValue').textContent = kills;
 
-    // Button clicks
-    document.querySelectorAll('.btn[data-state]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const btnState = btn.dataset.state;
-        const event = BTN_EVENT[btnState];
-        const prevState = currentState;
-        handleEvent(event);
-        // Trigger jump physics when transitioning TO JUMP
-        if (currentState === 'JUMP' && prevState !== 'JUMP') {
-          isJumping = true;
-          jumpVel = -12;
-        }
-        flashValid();
-      });
-    });
+      // Update log
+      const logEl = document.getElementById('log');
+      const lastEntry = stateHistory[stateHistory.length - 1];
+      if (lastEntry) {
+        const fromName = STATE_NAMES[lastEntry.from];
+        const toName = STATE_NAMES[lastEntry.to];
+        const time = lastEntry.time;
+        logEl.innerHTML += `<div class="log-entry"><span class="from">${fromName}</span> → <span class="to">${toName}</span> <span class="evt">[${time}ms]</span></div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    }
 
-    // Keyboard
-    document.addEventListener('keydown', (e) => {
-      if (e.repeat) return;
-      const keyMap = { '1': 'IDLE', '2': 'WALK', '3': 'JUMP', '4': 'ATTACK', '5': 'RUN' };
-      if (keyMap[e.key]) {
-        const event = BTN_EVENT[keyMap[e.key]];
-        handleEvent(event);
-        flashValid();
+    // ═══════════════════════════════════════════════════
+    // Input
+    // ═══════════════════════════════════════════════════
+    window.addEventListener('keydown', (e) => {
+      player.keys[e.key] = true;
+      if (e.key === '1' || e.key === '2') {
+        player.powerUp = e.key === '1';
+        document.getElementById('powerBtn').textContent = '⚡ POWER UP (1) - ' + (player.powerUp ? 'ON' : 'OFF');
       }
     });
+    window.addEventListener('keyup', (e) => {
+      player.keys[e.key] = false;
+    });
 
-    // Reset log
-    document.getElementById('resetLog').addEventListener('click', () => {
-      logEntries.length = 0;
-      logEntry('—', currentState, 'RESET');
-      renderLog();
+    document.getElementById('powerBtn').addEventListener('click', () => {
+      player.powerUp = !player.powerUp;
+      document.getElementById('powerBtn').textContent = '⚡ POWER UP (1) - ' + (player.powerUp ? 'ON' : 'OFF');
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      monster.x = W/2;
+      monster.y = H/2;
+      monster.state = IDLE;
+      monster.waypointIndex = 0;
+      monster.speed = PATROL_SPEED;
+      player.x = W - 100;
+      player.y = H - 100;
+      player.powerUp = false;
+      state = IDLE;
+      kills = 0;
+      stateHistory = [];
+      document.getElementById('log').innerHTML = '';
+      updateUI();
     });
 
     // ═══════════════════════════════════════════════════
-    // Init
+    // Game loop
     // ═══════════════════════════════════════════════════
+    let lastTime = Date.now();
+    function gameLoop() {
+      const now = Date.now();
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
 
-    renderTransitions();
-    updateUI();
-    requestAnimationFrame(updateAnimation);
+      updatePlayer();
+      updateState();
+      render();
+      updateUI();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Start
+    initWaypoints();
+    gameLoop();
   </script>
 </body>
 </html>
