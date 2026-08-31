@@ -22,10 +22,70 @@
       max-height: 100%;
       touch-action: none;
     }
+    #wasd {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+    }
+    #wasd button {
+      width: 60px;
+      height: 60px;
+      border: 2px solid #e94560;
+      border-radius: 8px;
+      background: rgba(233, 69, 96, 0.3);
+      color: #fff;
+      font-size: 24px;
+      font-weight: bold;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #wasd button:active {
+      background: rgba(233, 69, 96, 0.7);
+    }
+    .wasd-row {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <div id="wasd">
+    <div class="wasd-row"><button id="w">W</button></div>
+    <div class="wasd-row">
+      <button id="a">A</button>
+      <button id="s">S</button>
+      <button id="d">D</button>
+    </div>
+  </div>
   <script type="module" src="js/main.js"></script>
+  <script>
+    // Detect mobile and show WASD buttons
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        || ('ontouchstart' in window && window.innerWidth <= 768);
+    }
+    if (isMobile()) {
+      document.getElementById('wasd').style.display = 'block';
+    }
+    // Simulate keyboard events on touch
+    const keyMap = { w: 'KeyW', a: 'KeyA', s: 'KeyS', d: 'KeyD' };
+    Object.entries(keyMap).forEach(([id, code]) => {
+      const btn = document.getElementById(id);
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: code, key: id, bubbles: true }));
+      }, { passive: false });
+      btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: code, key: id, bubbles: true }));
+      }, { passive: false });
+    });
+  </script>
 </body>
 </html>

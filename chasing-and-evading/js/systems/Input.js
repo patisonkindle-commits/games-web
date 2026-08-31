@@ -1,4 +1,4 @@
-// Input.js — Keyboard + Mouse + Touch input manager
+// Input.js — Keyboard + Mouse input manager
 export class Input {
   constructor(canvas) {
     this.keys = {};
@@ -9,7 +9,6 @@ export class Input {
     this.mouseClickedThisFrame = false;
     this._canvas = canvas;
 
-    // ─── Keyboard ───
     window.addEventListener('keydown', (e) => {
       if (!this.keys[e.code]) {
         this.pressedThisFrame[e.code] = true;
@@ -25,22 +24,20 @@ export class Input {
       this.keys[e.code] = false;
     });
 
-    // ─── Coordinate mapper ───
-    const mapCoords = (clientX, clientY) => {
+    const updateMousePos = (e) => {
       const rect = this._canvas.getBoundingClientRect();
       const scaleX = this._canvas.width / rect.width;
       const scaleY = this._canvas.height / rect.height;
-      this.mouseX = (clientX - rect.left) * scaleX;
-      this.mouseY = (clientY - rect.top) * scaleY;
+      this.mouseX = (e.clientX - rect.left) * scaleX;
+      this.mouseY = (e.clientY - rect.top) * scaleY;
     };
 
-    // ─── Mouse events (desktop) ───
     canvas.addEventListener('mousemove', (e) => {
-      mapCoords(e.clientX, e.clientY);
+      updateMousePos(e);
     });
 
     canvas.addEventListener('mousedown', (e) => {
-      mapCoords(e.clientX, e.clientY);
+      updateMousePos(e);
       this.mouseDown = true;
       this.mouseClickedThisFrame = true;
     });
@@ -48,30 +45,6 @@ export class Input {
     canvas.addEventListener('mouseup', () => {
       this.mouseDown = false;
     });
-
-    // ─── Touch events (mobile) ───
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault(); // prevent scroll/zoom
-      const touch = e.touches[0];
-      if (touch) {
-        mapCoords(touch.clientX, touch.clientY);
-        this.mouseDown = true;
-        this.mouseClickedThisFrame = true;
-      }
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      if (touch) {
-        mapCoords(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-
-    canvas.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      this.mouseDown = false;
-    }, { passive: false });
 
     // Prevent context menu on right-click
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
