@@ -177,7 +177,7 @@ export class Game {
 
     // ESC on menu → back to main landing page
     if (this.input.isKeyDown('Escape')) {
-      window.location.href = '../';
+      window.location.href = '/';
       return;
     }
   }
@@ -208,7 +208,7 @@ export class Game {
     // Escape → back to main menu
     this.escapeCooldown = Math.max(0, this.escapeCooldown - dt);
     if (this.input.isKeyDown('Escape') && this.escapeCooldown <= 0) {
-      window.location.href = '../';
+      window.location.href = '/';
       return;
     }
 
@@ -217,7 +217,7 @@ export class Game {
       const m = this.input.getMousePosition();
       const b = this._backBtnRect;
       if (m.x >= b.x && m.x <= b.x + b.w && m.y >= b.y && m.y <= b.y + b.h) {
-        window.location.href = '../';
+        window.location.href = '/';
         return;
       }
     }
@@ -286,6 +286,8 @@ export class Game {
         mx /= len; my /= len;
         this.mouse.x += mx * CONFIG.PLAYER_MOUSE_SPEED * dt;
         this.mouse.y += my * CONFIG.PLAYER_MOUSE_SPEED * dt;
+        this.mouse.x = Math.max(0, Math.min(CONFIG.CANVAS_WIDTH, this.mouse.x));
+        this.mouse.y = Math.max(0, Math.min(CONFIG.CANVAS_HEIGHT, this.mouse.y));
         this.mouse.angle = Math.atan2(my, mx);
         this.mouse.trail.push({ x: this.mouse.x, y: this.mouse.y });
         if (this.mouse.trail.length > CONFIG.TRAIL_MAX_LENGTH) this.mouse.trail.shift();
