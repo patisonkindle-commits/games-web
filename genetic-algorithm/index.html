@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genetic Algorithm Game Lab (Smart Rockets & 2D Physics Rovers)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Matter.js for 2D Physics Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <!-- Google Fonts: Inter & Sarabun -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    body {
+      font-family: 'Sarabun', 'Inter', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .mono-font {
+      font-family: 'Courier New', Courier, monospace;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    /* Glow effect for canvas visuals */
+    .neon-glow {
+      box-shadow: 0 0 25px -5px rgba(56, 189, 248, 0.25);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-white">
+
+  <!-- Header Bar -->
+  <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 py-3 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
+          <i class="fa-solid fa-dna text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-wide text-white flex items-center gap-2">
+            Genetic Algorithm in Games
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Interactive Lab</span>
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">Interactive comparison of Genetic Algorithms (GA) applied to two game mechanics</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <div class="bg-slate-800/90 p-1 rounded-xl border border-slate-700/60 flex text-xs sm:text-sm font-medium">
+          <button id="tabRocketBtn" onclick="switchSimulation('rockets')" class="px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-2 bg-cyan-600 text-white shadow">
+            <i class="fa-solid fa-shuttle-space"></i>
+            <span>1: Smart Rockets</span>
+          </button>
+          <button id="tabCarBtn" onclick="switchSimulation('cars')" class="px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-2 text-slate-400 hover:text-slate-200">
+            <i class="fa-solid fa-car-side"></i>
+            <span>2: Physics Rover</span>
+          </button>
+        </div>
+
+        <button onclick="toggleExplainerModal(true)" title="Genetic Algorithm Concepts & Guide" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700">
+          <i class="fa-solid fa-circle-question"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-4 gap-4">
+
+    <!-- Left / Top: Interactive Canvas Area -->
+    <div class="lg:col-span-3 flex flex-col gap-3">
+      <!-- Canvas Wrapper -->
+      <div class="relative bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden neon-glow aspect-[16/10] min-h-[380px] max-h-[580px] flex items-center justify-center">
+        <canvas id="mainCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+        <!-- Dynamic Overlay HUD -->
+        <div class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur border border-slate-800 text-xs px-3 py-2 rounded-xl flex flex-col gap-1 pointer-events-none shadow-lg">
+          <div class="flex items-center gap-2 font-bold text-slate-300">
+            <span id="hudSimTitle" class="text-cyan-400">🚀 Smart Rockets Simulation</span>
+          </div>
+          <div class="flex items-center gap-3 text-slate-400">
+            <span>Gen: <strong id="hudGen" class="text-white font-mono text-sm">1</strong></span>
+            <span>Lifespan: <strong id="hudAge" class="text-cyan-300 font-mono">0 / 300</strong></span>
+            <span>Successes: <strong id="hudSuccess" class="text-emerald-400 font-mono">0</strong></span>
+          </div>
+        </div>
+
+        <!-- Floating Canvas Controls -->
+        <div class="absolute bottom-3 right-3 flex items-center gap-2 bg-slate-950/85 backdrop-blur border border-slate-800 p-1.5 rounded-xl shadow-lg">
+          <button id="btnPlayPause" onclick="togglePause()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white font-semibold flex items-center gap-1.5 transition">
+            <i id="pauseIcon" class="fa-solid fa-pause text-cyan-400"></i>
+            <span id="pauseText">Pause</span>
+          </button>
+          <button onclick="resetSimulation()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-rose-300 font-semibold flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-arrow-rotate-right"></i>
+            <span>Reset Population</span>
+          </button>
+          <div class="h-4 w-px bg-slate-700 mx-1"></div>
+          <button id="btnSpeed1" onclick="setSpeed(1)" class="px-2 py-1 rounded text-xs font-mono font-bold bg-cyan-600 text-white">1x</button>
+          <button id="btnSpeed2" onclick="setSpeed(2)" class="px-2 py-1 rounded text-xs font-mono font-bold bg-slate-800 text-slate-400 hover:text-white">2x</button>
+          <button id="btnSpeed5" onclick="setSpeed(5)" class="px-2 py-1 rounded text-xs font-mono font-bold bg-slate-800 text-slate-400 hover:text-white">5x</button>
+        </div>
+
+        <!-- Hint Overlay for Rockets mode -->
+        <div id="canvasTip" class="absolute bottom-3 left-3 bg-slate-900/90 text-slate-400 text-xs px-2.5 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2 pointer-events-none transition-opacity duration-300">
+          <i class="fa-solid fa-hand-pointer text-cyan-400 text-xs"></i>
+          <span id="canvasTipText">Click & drag on the canvas to move the obstacle</span>
+        </div>
+      </div>
+
+      <!-- Mini Analytics Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-slate-900/70 border border-slate-800/80 rounded-xl p-3 flex flex-col">
+          <span class="text-xs text-slate-400">Peak Fitness (Best)</span>
+          <span id="statBestFit" class="text-lg font-bold font-mono text-cyan-400 mt-1">0.00</span>
+          <span class="text-[11px] text-slate-500 mt-0.5">Top-performing individual</span>
+        </div>
+        <div class="bg-slate-900/70 border border-slate-800/80 rounded-xl p-3 flex flex-col">
+          <span class="text-xs text-slate-400">Average Fitness</span>
+          <span id="statAvgFit" class="text-lg font-bold font-mono text-indigo-400 mt-1">0.00</span>
+          <span class="text-[11px] text-slate-500 mt-0.5">Population mean score</span>
+        </div>
+        <div class="bg-slate-900/70 border border-slate-800/80 rounded-xl p-3 flex flex-col">
+          <span class="text-xs text-slate-400">Success Rate</span>
+          <span id="statSuccessRate" class="text-lg font-bold font-mono text-emerald-400 mt-1">0%</span>
+          <span class="text-[11px] text-slate-500 mt-0.5">Target reached / Track conquered</span>
+        </div>
+        <div class="bg-slate-900/70 border border-slate-800/80 rounded-xl p-3 flex flex-col">
+          <span class="text-xs text-slate-400">Population (Pop)</span>
+          <span id="statPopCount" class="text-lg font-bold font-mono text-amber-400 mt-1">50</span>
+          <span class="text-[11px] text-slate-500 mt-0.5">Individuals per generation</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar: GA Control & DNA Inspector -->
+    <aside class="flex flex-col gap-4">
+      <!-- GA Hyperparameters Card -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-cyan-400"></i>
+            GA Hyperparameters
+          </h2>
+          <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">Live Tuning</span>
+        </div>
+
+        <!-- Mutation Rate Slider -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs">
+            <label for="sliderMutation" class="text-slate-300 font-medium">Mutation Rate</label>
+            <span id="valMutation" class="font-mono text-cyan-400 font-bold">2.0%</span>
+          </div>
+          <input type="range" id="sliderMutation" min="0" max="15" step="0.5" value="2" 
+                 class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+          <p class="text-[11px] text-slate-500">Probability of genes mutating randomly rather than inheriting</p>
+        </div>
+
+        <!-- Population Size Slider -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs">
+            <label for="sliderPopSize" class="text-slate-300 font-medium">Population Size</label>
+            <span id="valPopSize" class="font-mono text-cyan-400 font-bold">50</span>
+          </div>
+          <input type="range" id="sliderPopSize" min="20" max="150" step="10" value="50" 
+                 class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+          <p class="text-[11px] text-slate-500">Takes effect on the next generation cycle</p>
+        </div>
+
+        <!-- Selection Method -->
+        <div class="space-y-1.5">
+          <label class="text-xs text-slate-300 font-medium block">Selection Method</label>
+          <select id="selectSelection" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:border-cyan-500">
+            <option value="roulette">Roulette Wheel (Fitness Proportionate)</option>
+            <option value="tournament">Tournament Selection (k=4 Contenders)</option>
+          </select>
+        </div>
+
+        <button onclick="forceNextGen()" class="w-full py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-forward-step"></i>
+          <span>Force Next Generation</span>
+        </button>
+      </div>
+
+      <!-- DNA & Concept Breakdown Card -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col gap-3">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+          <i class="fa-solid fa-microscope text-indigo-400"></i>
+          Chromosome Architecture (DNA)
+        </h2>
+
+        <div id="dnaExplainer" class="text-xs text-slate-300 space-y-2 flex-1">
+          <!-- Populated dynamically based on simulation mode -->
+        </div>
+
+        <!-- History Graph of Fitness -->
+        <div class="mt-2 pt-2 border-t border-slate-800">
+          <div class="flex justify-between items-center text-xs mb-1.5 text-slate-400">
+            <span>Fitness History across Gens</span>
+            <span class="text-[10px] text-cyan-400">● Best</span>
+          </div>
+          <div class="h-20 bg-slate-950 rounded-lg p-1 border border-slate-800/80 relative">
+            <canvas id="chartCanvas" class="w-full h-full block"></canvas>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Modal: Explainer & Architecture -->
+  <div id="explainerModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 max-w-2xl w-full rounded-2xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto flex flex-col gap-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-dna text-cyan-400 text-xl"></i>
+          <h3 class="text-base sm:text-lg font-bold text-white">Genetic Algorithm (GA) Mechanisms in Games</h3>
+        </div>
+        <button onclick="toggleExplainerModal(false)" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm text-slate-300 leading-relaxed">
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-cyan-400 mb-1">1. Smart Rockets (Vector DNA)</h4>
+          <p class="text-slate-300">
+            The chromosome is an array of directional force vectors <code class="text-indigo-300">Force[300]</code> applied per frame. Rockets getting closest or reaching the target faster obtain higher fitness. Crossover blends trajectory patterns from two parent rockets, allowing generations to organically evolve navigating around obstacles.
+          </p>
+        </div>
+
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-400 mb-1">2. 2D Physics Rover (Morphology DNA)</h4>
+          <p class="text-slate-300">
+            The chromosome directly encodes vehicle anatomy modeled with 2D rigid-body physics (Matter.js): chassis polygon vertices, front & rear wheel diameters, and wheel axle mount locations. Fitness equals horizontal distance covered along rugged terrain. Overturned or stuck rovers are filtered out, passing resilient geometry to progeny.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+          <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+            <h5 class="font-semibold text-white mb-1"><i class="fa-solid fa-trophy text-amber-400 mr-1"></i> Selection</h5>
+            <p class="text-[12px] text-slate-400">Chooses candidate parents weighted by fitness scores to pass favorable traits ahead.</p>
+          </div>
+          <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+            <h5 class="font-semibold text-white mb-1"><i class="fa-solid fa-code-fork text-cyan-400 mr-1"></i> Crossover</h5>
+            <p class="text-[12px] text-slate-400">Recombines gene sequences from paired parents to form novel hybrid phenotypes.</p>
+          </div>
+          <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+            <h5 class="font-semibold text-white mb-1"><i class="fa-solid fa-wand-magic-sparkles text-purple-400 mr-1"></i> Mutation</h5>
+            <p class="text-[12px] text-slate-400">Randomly perturbs genes to explore undiscovered solutions and avoid local optima.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-3 border-t border-slate-800">
+        <button onclick="toggleExplainerModal(false)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold">
+          Got it, let's explore!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Global Application State ---
+    let currentMode = 'rockets'; // 'rockets' or 'cars'
+    let isPaused = false;
+    let speedMultiplier = 1;
+    let mutationRate = 0.02;
+    let populationSize = 50;
+    let selectionMethod = 'roulette';
+
+    // Canvas references
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const chartCanvas = document.getElementById('chartCanvas');
+    const chartCtx = chartCanvas.getContext('2d');
+
+    // History tracking for fitness chart
+    let fitnessHistory = [];
+
+    // Resize Canvas dynamically
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      const cRect = chartCanvas.getBoundingClientRect();
+      chartCanvas.width = cRect.width * window.devicePixelRatio;
+      chartCanvas.height = cRect.height * window.devicePixelRatio;
+      chartCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      if (currentMode === 'cars' && carSimulation) {
+        carSimulation.onResize();
+      }
+    });
+
+    // Simple 2D Vector Helper for Rocket Simulation
+    class Vector2D {
+      constructor(x = 0, y = 0) {
+        this.x = x;
+        this.y = y;
+      }
+      add(v) { this.x += v.x; this.y += v.y; return this; }
+      mult(n) { this.x *= n; this.y *= n; return this; }
+      div(n) { if (n !== 0) { this.x /= n; this.y /= n; } return this; }
+      mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+      limit(max) {
+        const m = this.mag();
+        if (m > max) { this.div(m).mult(max); }
+        return this;
+      }
+      heading() { return Math.atan2(this.y, this.x); }
+      static random2D(length = 1) {
+        const angle = Math.random() * Math.PI * 2;
+        return new Vector2D(Math.cos(angle) * length, Math.sin(angle) * length);
+      }
+      static dist(v1, v2) {
+        const dx = v1.x - v2.x;
+        const dy = v1.y - v2.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+
+    // --- SMART ROCKETS SIMULATION (OPTION 1) ---
+    const ROCKET_LIFESPAN = 300;
+    const MAX_FORCE = 0.35;
+
+    class RocketDNA {
+      constructor(genes) {
+        if (genes) {
+          this.genes = genes;
+        } else {
+          this.genes = [];
+          for (let i = 0; i < ROCKET_LIFESPAN; i++) {
+            this.genes.push(Vector2D.random2D(MAX_FORCE));
+          }
+        }
+      }
+
+      crossover(partner) {
+        const newGenes = [];
+        const midpoint = Math.floor(Math.random() * this.genes.length);
+        for (let i = 0; i < this.genes.length; i++) {
+          newGenes.push(i > midpoint ? this.genes[i] : partner.genes[i]);
+        }
+        return new RocketDNA(newGenes);
+      }
+
+      mutate(rate) {
+        for (let i = 0; i < this.genes.length; i++) {
+          if (Math.random() < rate) {
+            this.genes[i] = Vector2D.random2D(MAX_FORCE);
+          }
+        }
+      }
+    }
+
+    class Rocket {
+      constructor(dna, startX, startY) {
+        this.pos = new Vector2D(startX, startY);
+        this.vel = new Vector2D();
+        this.acc = new Vector2D();
+        this.dna = dna || new RocketDNA();
+        this.fitness = 0;
+        this.completed = false;
+        this.crashed = false;
+        this.timeToTarget = 0;
+      }
+
+      applyForce(force) {
+        this.acc.add(force);
+      }
+
+      update(stepIndex, target, obstacle, canvasWidth, canvasHeight) {
+        if (this.completed || this.crashed) return;
+
+        // Check target hit
+        const d = Vector2D.dist(this.pos, target);
+        if (d < target.radius) {
+          this.completed = true;
+          this.pos = new Vector2D(target.x, target.y);
+          this.timeToTarget = stepIndex;
+          return;
+        }
+
+        // Check obstacle collision
+        if (
+          this.pos.x > obstacle.x &&
+          this.pos.x < obstacle.x + obstacle.w &&
+          this.pos.y > obstacle.y &&
+          this.pos.y < obstacle.y + obstacle.h
+        ) {
+          this.crashed = true;
+          return;
+        }
+
+        // Check boundary hit
+        if (this.pos.x < 0 || this.pos.x > canvasWidth || this.pos.y < 0 || this.pos.y > canvasHeight) {
+          this.crashed = true;
+          return;
+        }
+
+        // Apply force from DNA
+        this.applyForce(this.dna.genes[stepIndex]);
+        this.vel.add(this.acc);
+        this.vel.limit(5);
+        this.pos.add(this.vel);
+        this.acc.mult(0);
+      }
+
+      calcFitness(target) {
+        const d = Vector2D.dist(this.pos, target);
+        // Fitness inversely proportional to distance squared
+        this.fitness = 1 / (d * d + 0.001);
+
+        if (this.completed) {
+          // Bonus for reaching target + fast arrival bonus
+          this.fitness *= 15;
+          const timeBonus = (ROCKET_LIFESPAN - this.timeToTarget) / ROCKET_LIFESPAN;
+          this.fitness *= (1 + timeBonus * 4);
+        }
+        if (this.crashed) {
+          // Penalty for crashing into obstacle
+          this.fitness *= 0.15;
+        }
+      }
+
+      draw(context) {
+        context.save();
+        context.translate(this.pos.x, this.pos.y);
+        context.rotate(this.vel.heading() + Math.PI / 2);
+
+        // Styling based on state
+        if (this.completed) {
+          context.fillStyle = '#34d399'; // Emerald
+        } else if (this.crashed) {
+          context.fillStyle = 'rgba(239, 68, 68, 0.4)'; // Red
+        } else {
+          context.fillStyle = 'rgba(56, 189, 248, 0.7)'; // Cyan
+        }
+
+        // Rocket body
+        context.beginPath();
+        context.moveTo(0, -10);
+        context.lineTo(-4, 8);
+        context.lineTo(4, 8);
+        context.closePath();
+        context.fill();
+
+        // Rocket thruster spark
+        if (!this.completed && !this.crashed) {
+          context.fillStyle = 'rgba(251, 146, 60, 0.8)';
+          context.fillRect(-1.5, 8, 3, 4);
+        }
+        context.restore();
+      }
+    }
+
+    class RocketSimulation {
+      constructor() {
+        this.generation = 1;
+        this.step = 0;
+        this.rockets = [];
+        this.target = { x: 0, y: 80, radius: 18 };
+        this.obstacle = { x: 0, y: 0, w: 220, h: 22 };
+        this.isDraggingObstacle = false;
+        this.init();
+      }
+
+      init() {
+        this.rockets = [];
+        const width = canvas.getBoundingClientRect().width;
+        const height = canvas.getBoundingClientRect().height;
+        this.target.x = width / 2;
+        this.obstacle.x = width / 2 - this.obstacle.w / 2;
+        this.obstacle.y = height / 2 - 20;
+
+        for (let i = 0; i < populationSize; i++) {
+          this.rockets.push(new Rocket(null, width / 2, height - 40));
+        }
+        this.step = 0;
+      }
+
+      update() {
+        const width = canvas.getBoundingClientRect().width;
+        const height = canvas.getBoundingClientRect().height;
+
+        for (let rocket of this.rockets) {
+          rocket.update(this.step, this.target, this.obstacle, width, height);
+        }
+
+        this.step++;
+        if (this.step >= ROCKET_LIFESPAN || this.rockets.every(r => r.completed || r.crashed)) {
+          this.evolve();
+        }
+      }
+
+      evolve() {
+        // 1. Calculate fitness for all
+        let maxFit = 0;
+        let sumFit = 0;
+        let successCount = 0;
+
+        for (let rocket of this.rockets) {
+          rocket.calcFitness(this.target);
+          if (rocket.fitness > maxFit) maxFit = rocket.fitness;
+          sumFit += rocket.fitness;
+          if (rocket.completed) successCount++;
+        }
+
+        // Record metrics
+        const avgFit = sumFit / this.rockets.length;
+        recordFitnessHistory(maxFit, avgFit);
+        updateMetrics(maxFit, avgFit, (successCount / this.rockets.length) * 100, this.rockets.length);
+
+        // 2. Selection & Reproduction
+        const newRockets = [];
+        const width = canvas.getBoundingClientRect().width;
+        const height = canvas.getBoundingClientRect().height;
+
+        // Elitism: Preserve absolute best rocket
+        let bestRocket = this.rockets[0];
+        for (let r of this.rockets) {
+          if (r.fitness > bestRocket.fitness) bestRocket = r;
+        }
+        newRockets.push(new Rocket(new RocketDNA([...bestRocket.dna.genes]), width / 2, height - 40));
+
+        // Create remaining offspring
+        while (newRockets.length < populationSize) {
+          const parentA = this.selectParent(sumFit);
+          const parentB = this.selectParent(sumFit);
+          const childDNA = parentA.dna.crossover(parentB.dna);
+          childDNA.mutate(mutationRate);
+          newRockets.push(new Rocket(childDNA, width / 2, height - 40));
+        }
+
+        this.rockets = newRockets;
+        this.generation++;
+        this.step = 0;
+      }
+
+      selectParent(sumFit) {
+        if (selectionMethod === 'tournament') {
+          // Tournament of 4 candidates
+          let best = null;
+          for (let i = 0; i < 4; i++) {
+            const candidate = this.rockets[Math.floor(Math.random() * this.rockets.length)];
+            if (!best || candidate.fitness > best.fitness) best = candidate;
+          }
+          return best;
+        } else {
+          // Roulette wheel selection
+          let rand = Math.random() * sumFit;
+          let runningSum = 0;
+          for (let rocket of this.rockets) {
+            runningSum += rocket.fitness;
+            if (runningSum >= rand) return rocket;
+          }
+          return this.rockets[this.rockets.length - 1];
+        }
+      }
+
+      draw() {
+        const width = canvas.getBoundingClientRect().width;
+        const height = canvas.getBoundingClientRect().height;
+        ctx.clearRect(0, 0, width, height);
+
+        // Draw Target with pulsating glow
+        const pulse = Math.sin(Date.now() * 0.005) * 3;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(this.target.x, this.target.y, this.target.radius + pulse, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(this.target.x, this.target.y, this.target.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#10b981';
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 15;
+        ctx.fill();
+
+        // Inner target ring
+        ctx.beginPath();
+        ctx.arc(this.target.x, this.target.y, this.target.radius * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.restore();
+
+        // Draw Obstacle
+        ctx.save();
+        ctx.fillStyle = this.isDraggingObstacle ? '#fb923c' : '#ea580c';
+        ctx.strokeStyle = '#ffedd5';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(this.obstacle.x, this.obstacle.y, this.obstacle.w, this.obstacle.h, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw Launchpad
+        ctx.fillStyle = 'rgba(71, 85, 105, 0.4)';
+        ctx.fillRect(width / 2 - 35, height - 30, 70, 8);
+
+        // Draw all rockets
+        for (let rocket of this.rockets) {
+          rocket.draw(ctx);
+        }
+
+        // Update HUD
+        document.getElementById('hudSimTitle').innerText = "🚀 Smart Rockets (Vector Force DNA)";
+        document.getElementById('hudGen').innerText = this.generation;
+        document.getElementById('hudAge').innerText = `${this.step} / ${ROCKET_LIFESPAN}`;
+        const successes = this.rockets.filter(r => r.completed).length;
+        document.getElementById('hudSuccess').innerText = successes;
+      }
+    }
+
+    // --- 2D PHYSICS ROVER SIMULATION (OPTION 2 WITH MATTER.JS) ---
+    const CAR_POPULATION = 18;
+    const CAR_EVAL_TIME = 450; // physics frames per generation
+
+    class CarDNA {
+      constructor(data) {
+        if (data) {
+          this.vertices = data.vertices; // Array of radial radii [8 values]
+          this.wheel1Radius = data.wheel1Radius;
+          this.wheel2Radius = data.wheel2Radius;
+          this.wheel1Vertex = data.wheel1Vertex; // index 0..7
+          this.wheel2Vertex = data.wheel2Vertex; // index 0..7
+          this.motorSpeed = data.motorSpeed;
+        } else {
+          // Generate Random DNA
+          this.vertices = [];
+          for (let i = 0; i < 8; i++) {
+            this.vertices.push(18 + Math.random() * 32); // radius from center
+          }
+          this.wheel1Radius = 8 + Math.random() * 14;
+          this.wheel2Radius = 8 + Math.random() * 14;
+          this.wheel1Vertex = Math.floor(Math.random() * 4); // Rear wheel
+          this.wheel2Vertex = 4 + Math.floor(Math.random() * 4); // Front wheel
+          this.motorSpeed = 0.12 + Math.random() * 0.16; // wheel angular speed
+        }
+      }
+
+      crossover(partner) {
+        const newVertices = this.vertices.map((v, i) => Math.random() < 0.5 ? v : partner.vertices[i]);
+        return new CarDNA({
+          vertices: newVertices,
+          wheel1Radius: Math.random() < 0.5 ? this.wheel1Radius : partner.wheel1Radius,
+          wheel2Radius: Math.random() < 0.5 ? this.wheel2Radius : partner.wheel2Radius,
+          wheel1Vertex: Math.random() < 0.5 ? this.wheel1Vertex : partner.wheel1Vertex,
+          wheel2Vertex: Math.random() < 0.5 ? this.wheel2Vertex : partner.wheel2Vertex,
+          motorSpeed: Math.random() < 0.5 ? this.motorSpeed : partner.motorSpeed
+        });
+      }
+
+      mutate(rate) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          if (Math.random() < rate) {
+            this.vertices[i] = Math.max(12, Math.min(50, this.vertices[i] + (Math.random() * 14 - 7)));
+          }
+        }
+        if (Math.random() < rate) this.wheel1Radius = Math.max(6, Math.min(24, this.wheel1Radius + (Math.random() * 6 - 3)));
+        if (Math.random() < rate) this.wheel2Radius = Math.max(6, Math.min(24, this.wheel2Radius + (Math.random() * 6 - 3)));
+        if (Math.random() < rate) this.motorSpeed = Math.max(0.08, Math.min(0.3, this.motorSpeed + (Math.random() * 0.06 - 0.03)));
+      }
+    }
+
+    class PhysicsCar {
+      constructor(dna, world, startX, startY, id) {
+        this.dna = dna || new CarDNA();
+        this.world = world;
+        this.id = id;
+        this.isDead = false;
+        this.maxX = startX;
+        this.fitness = 0;
+        this.startX = startX;
+        this.idleFrames = 0;
+
+        // Build Polygon chassis vertices from DNA
+        const points = [];
+        const numPoints = this.dna.vertices.length;
+        for (let i = 0; i < numPoints; i++) {
+          const angle = (i / numPoints) * Math.PI * 2;
+          const r = this.dna.vertices[i];
+          points.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
+        }
+
+        // Collision category grouping to prevent cars from colliding with each other
+        const carCollisionGroup = Matter.Body.nextGroup(true);
+
+        // 1. Chassis Body
+        this.chassis = Matter.Bodies.fromVertices(startX, startY, [points], {
+          collisionFilter: { group: carCollisionGroup },
+          density: 0.0025,
+          friction: 0.8
+        });
+
+        // Compute actual wheel attach coordinates based on vertex offset
+        const p1 = points[this.dna.wheel1Vertex % points.length];
+        const p2 = points[this.dna.wheel2Vertex % points.length];
+
+        // 2. Wheels
+        this.wheel1 = Matter.Bodies.circle(startX + p1.x, startY + p1.y, this.dna.wheel1Radius, {
+          collisionFilter: { group: carCollisionGroup },
+          friction: 0.95,
+          density: 0.003
+        });
+
+        this.wheel2 = Matter.Bodies.circle(startX + p2.x, startY + p2.y, this.dna.wheel2Radius, {
+          collisionFilter: { group: carCollisionGroup },
+          friction: 0.95,
+          density: 0.003
+        });
+
+        // 3. Axle Constraints (Spring / Pin Joints)
+        this.axle1 = Matter.Constraint.create({
+          bodyA: this.chassis,
+          pointA: { x: p1.x * 0.8, y: p1.y * 0.8 },
+          bodyB: this.wheel1,
+          stiffness: 0.6,
+          damping: 0.1,
+          length: 0
+        });
+
+        this.axle2 = Matter.Constraint.create({
+          bodyA: this.chassis,
+          pointA: { x: p2.x * 0.8, y: p2.y * 0.8 },
+          bodyB: this.wheel2,
+          stiffness: 0.6,
+          damping: 0.1,
+          length: 0
+        });
+
+        // Add composite to Matter world
+        this.composite = Matter.Composite.create();
+        Matter.Composite.add(this.composite, [this.chassis, this.wheel1, this.wheel2, this.axle1, this.axle2]);
+        Matter.Composite.add(this.world, this.composite);
+      }
+
+      update() {
+        if (this.isDead) return;
+
+        // Apply motor drive (angular velocity) to wheels
+        Matter.Body.setAngularVelocity(this.wheel1, this.dna.motorSpeed);
+        Matter.Body.setAngularVelocity(this.wheel2, this.dna.motorSpeed);
+
+        const currentX = this.chassis.position.x;
+        if (currentX > this.maxX + 1) {
+          this.maxX = currentX;
+          this.idleFrames = 0;
+        } else {
+          this.idleFrames++;
+        }
+
+        // Kill if stuck for too long (120 physics steps) or fallen down into void
+        if (this.idleFrames > 130 || this.chassis.position.y > 1400) {
+          this.isDead = true;
+        }
+      }
+
+      calcFitness() {
+        // Distance progressed along the track
+        const dist = Math.max(0, this.maxX - this.startX);
+        this.fitness = Math.pow(dist / 10, 1.8);
+        return this.fitness;
+      }
+
+      destroy() {
+        Matter.Composite.remove(this.world, this.composite);
+      }
+
+      draw(context, cameraX) {
+        context.save();
+        const alpha = this.isDead ? 0.25 : 0.85;
+
+        // Draw Chassis
+        context.fillStyle = `rgba(245, 158, 11, ${alpha})`; // Amber
+        context.strokeStyle = `rgba(253, 230, 138, ${alpha})`;
+        context.lineWidth = 1.5;
+        context.beginPath();
+        const vertices = this.chassis.vertices;
+        context.moveTo(vertices[0].x - cameraX, vertices[0].y);
+        for (let j = 1; j < vertices.length; j++) {
+          context.lineTo(vertices[j].x - cameraX, vertices[j].y);
+        }
+        context.closePath();
+        context.fill();
+        context.stroke();
+
+        // Draw Wheels
+        [this.wheel1, this.wheel2].forEach((wheel, idx) => {
+          context.save();
+          context.translate(wheel.position.x - cameraX, wheel.position.y);
+          context.rotate(wheel.angle);
+          context.fillStyle = `rgba(71, 85, 105, ${alpha})`;
+          context.strokeStyle = '#38bdf8';
+          context.lineWidth = 2;
+          context.beginPath();
+          const r = idx === 0 ? this.dna.wheel1Radius : this.dna.wheel2Radius;
+          context.arc(0, 0, r, 0, Math.PI * 2);
+          context.fill();
+          context.stroke();
+
+          // Wheel spoke indicator
+          context.beginPath();
+          context.moveTo(0, 0);
+          context.lineTo(r, 0);
+          context.strokeStyle = '#ffffff';
+          context.stroke();
+          context.restore();
+        });
+
+        context.restore();
+      }
+    }
+
+    class CarSimulation {
+      constructor() {
+        this.engine = Matter.Engine.create({ gravity: { x: 0, y: 1.2 } });
+        this.generation = 1;
+        this.step = 0;
+        this.cars = [];
+        this.terrainBodies = [];
+        this.cameraX = 0;
+        this.initTerrain();
+        this.initCars();
+      }
+
+      initTerrain() {
+        // Clear previous terrain bodies
+        this.terrainBodies.forEach(b => Matter.Composite.remove(this.engine.world, b));
+        this.terrainBodies = [];
+
+        // Build undulating hilly terrain
+        const segmentWidth = 90;
+        const totalSegments = 100;
+        let lastX = -200;
+        let lastY = 400;
+
+        for (let i = 0; i < totalSegments; i++) {
+          const nextX = lastX + segmentWidth;
+          // Sine waves + bumps for hilly terrain
+          let nextY = 400 + Math.sin(i * 0.35) * 55 + Math.cos(i * 0.15) * 40;
+          if (i < 4) nextY = 400; // Flat runway at start
+          if (i > 30) nextY += Math.sin(i * 0.7) * 40; // Harder rough hills later
+
+          const cx = (lastX + nextX) / 2;
+          const cy = (lastY + nextY) / 2 + 100;
+          const length = Math.hypot(nextX - lastX, nextY - lastY);
+          const angle = Math.atan2(nextY - lastY, nextX - lastX);
+
+          const groundPart = Matter.Bodies.rectangle(cx, cy, length + 2, 200, {
+            isStatic: true,
+            angle: angle,
+            friction: 0.95
+          });
+
+          this.terrainBodies.push(groundPart);
+          Matter.Composite.add(this.engine.world, groundPart);
+
+          lastX = nextX;
+          lastY = nextY;
+        }
+      }
+
+      initCars(dnaList = null) {
+        this.cars.forEach(c => c.destroy());
+        this.cars = [];
+
+        const startX = 50;
+        const startY = 320;
+
+        for (let i = 0; i < CAR_POPULATION; i++) {
+          const dna = dnaList ? dnaList[i] : new CarDNA();
+          this.cars.push(new PhysicsCar(dna, this.engine.world, startX, startY, i));
+        }
+        this.step = 0;
+      }
+
+      update() {
+        // Step Matter.js physics engine
+        Matter.Engine.update(this.engine, 1000 / 60);
+
+        for (let car of this.cars) {
+          car.update();
+        }
+
+        this.step++;
+        const allDead = this.cars.every(c => c.isDead);
+        if (this.step >= CAR_EVAL_TIME || allDead) {
+          this.evolve();
+        }
+      }
+
+      evolve() {
+        let maxFit = 0;
+        let sumFit = 0;
+        let bestDistance = 0;
+
+        for (let car of this.cars) {
+          const f = car.calcFitness();
+          if (f > maxFit) {
+            maxFit = f;
+            bestDistance = car.maxX - car.startX;
+          }
+          sumFit += f;
+        }
+
+        const avgFit = sumFit / this.cars.length;
+        recordFitnessHistory(maxFit, avgFit);
+        const successRate = Math.min(100, Math.round((bestDistance / 2500) * 100));
+        updateMetrics(maxFit, avgFit, successRate, this.cars.length);
+
+        // Sort cars by fitness descending
+        const sortedCars = [...this.cars].sort((a, b) => b.fitness - a.fitness);
+
+        // Breeding new generation
+        const newDNASet = [];
+
+        // Elitism: Preserve top 2 best vehicles
+        newDNASet.push(new CarDNA(sortedCars[0].dna));
+        newDNASet.push(new CarDNA(sortedCars[1].dna));
+
+        // Offspring for remainder
+        while (newDNASet.length < CAR_POPULATION) {
+          // Select parents from top 50%
+          const parentA = sortedCars[Math.floor(Math.random() * (CAR_POPULATION / 2))].dna;
+          const parentB = sortedCars[Math.floor(Math.random() * (CAR_POPULATION / 2))].dna;
+          const childDNA = parentA.crossover(parentB);
+          childDNA.mutate(mutationRate);
+          newDNASet.push(childDNA);
+        }
+
+        this.generation++;
+        this.initCars(newDNASet);
+      }
+
+      onResize() {
+        // Keep simulation running smoothly on window change
+      }
+
+      draw() {
+        const width = canvas.getBoundingClientRect().width;
+        const height = canvas.getBoundingClientRect().height;
+        ctx.clearRect(0, 0, width, height);
+
+        // Find leading active car to smooth-follow with camera
+        let leader = this.cars[0];
+        for (let c of this.cars) {
+          if (!c.isDead && c.chassis.position.x > leader.chassis.position.x) {
+            leader = c;
+          }
+        }
+        const targetCamX = leader.chassis.position.x - width * 0.3;
+        this.cameraX += (targetCamX - this.cameraX) * 0.08;
+
+        // Draw Sky Backdrop & Distance Markers
+        ctx.save();
+        ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '11px monospace';
+        for (let m = 0; m < 6000; m += 300) {
+          const sx = m - this.cameraX;
+          if (sx > -50 && sx < width + 50) {
+            ctx.beginPath();
+            ctx.moveTo(sx, 0);
+            ctx.lineTo(sx, height);
+            ctx.stroke();
+            ctx.fillText(`${m}m`, sx + 4, 30);
+          }
+        }
+        ctx.restore();
+
+        // Draw Ground Terrain
+        ctx.save();
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+
+        for (let part of this.terrainBodies) {
+          const vertices = part.vertices;
+          ctx.beginPath();
+          ctx.moveTo(vertices[0].x - this.cameraX, vertices[0].y);
+          for (let j = 1; j < vertices.length; j++) {
+            ctx.lineTo(vertices[j].x - this.cameraX, vertices[j].y);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Draw all cars
+        for (let car of this.cars) {
+          car.draw(ctx, this.cameraX);
+        }
+
+        // Draw leader indicator arrow
+        if (leader && !leader.isDead) {
+          ctx.save();
+          ctx.fillStyle = '#fbbf24';
+          const lx = leader.chassis.position.x - this.cameraX;
+          const ly = leader.chassis.position.y - 45;
+          ctx.beginPath();
+          ctx.moveTo(lx, ly + 8);
+          ctx.lineTo(lx - 6, ly);
+          ctx.lineTo(lx + 6, ly);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Update HUD
+        document.getElementById('hudSimTitle').innerText = "🏎️ Physics Rover (Matter.js DNA)";
+        document.getElementById('hudGen').innerText = this.generation;
+        document.getElementById('hudAge').innerText = `${this.step} / ${CAR_EVAL_TIME}`;
+        const activeCount = this.cars.filter(c => !c.isDead).length;
+        document.getElementById('hudSuccess').innerText = `${activeCount} alive`;
+      }
+    }
+
+    let rocketSimulation = null;
+    let carSimulation = null;
+
+    function initActiveSimulation() {
+      resizeCanvas();
+      if (currentMode === 'rockets') {
+        if (!rocketSimulation) rocketSimulation = new RocketSimulation();
+        updateDNAExplainerRockets();
+        document.getElementById('canvasTipText').innerText = "Click and drag to reposition the orange obstacle";
+      } else {
+        if (!carSimulation) carSimulation = new CarSimulation();
+        updateDNAExplainerCars();
+        document.getElementById('canvasTipText').innerText = "Camera tracks leading rover | 2D Matter.js physics engine";
+      }
+    }
+
+    function switchSimulation(mode) {
+      currentMode = mode;
+      fitnessHistory = []; // Reset history chart
+
+      const tabRocket = document.getElementById('tabRocketBtn');
+      const tabCar = document.getElementById('tabCarBtn');
+
+      if (mode === 'rockets') {
+        tabRocket.className = "px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-2 bg-cyan-600 text-white shadow";
+        tabCar.className = "px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-2 text-slate-400 hover:text-slate-200";
+        document.getElementById('sliderPopSize').value = 50;
+        document.getElementById('valPopSize').innerText = "50";
+        populationSize = 50;
+      } else {
+        tabCar.className = "px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-2 bg-amber-600 text-white shadow";
+        tabRocket.className = "px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-2 text-slate-400 hover:text-slate-200";
+        document.getElementById('sliderPopSize').value = 20;
+        document.getElementById('valPopSize').innerText = "20";
+        populationSize = 20;
+      }
+
+      initActiveSimulation();
+    }
+
+    function updateDNAExplainerRockets() {
+      const container = document.getElementById('dnaExplainer');
+      container.innerHTML = `
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span class="font-bold text-cyan-400 block mb-1">Chromosome (DNA):</span>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            2D force vector sequence: <span class="font-mono text-indigo-300">[Vector(dx, dy), ...]</span> across 300 discrete time steps.
+          </p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span class="font-bold text-emerald-400 block mb-1">Fitness Function:</span>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Score = <span class="font-mono text-amber-300">1 / (targetDistance)²</span> × arrival speed bonus (×15) ÷ collision penalty (×0.15).
+          </p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span class="font-bold text-purple-400 block mb-1">Crossover:</span>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Midpoint gene slice combining directional control maneuvers from two parents.
+          </p>
+        </div>
+      `;
+    }
+
+    function updateDNAExplainerCars() {
+      const container = document.getElementById('dnaExplainer');
+      container.innerHTML = `
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span class="font-bold text-amber-400 block mb-1">Chromosome (DNA):</span>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            8 chassis polygon radial vertices, wheel 1/2 radii, axle attachment points, and drive motor torque velocity.
+          </p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span class="font-bold text-emerald-400 block mb-1">Fitness Function:</span>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Score = <span class="font-mono text-amber-300">(horizontal distance X)^1.8</span>. Rovers navigating steep hills gain quadratic fitness.
+          </p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <span class="font-bold text-purple-400 block mb-1">Physics Engine:</span>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Simulates gravity, ground friction, and spring suspension dampers via Matter.js rigid bodies.
+          </p>
+        </div>
+      `;
+    }
+
+    function recordFitnessHistory(best, avg) {
+      fitnessHistory.push({ best, avg });
+      if (fitnessHistory.length > 35) fitnessHistory.shift();
+      drawFitnessChart();
+    }
+
+    function drawFitnessChart() {
+      const w = chartCanvas.getBoundingClientRect().width;
+      const h = chartCanvas.getBoundingClientRect().height;
+      chartCtx.clearRect(0, 0, w, h);
+
+      if (fitnessHistory.length < 2) return;
+
+      const maxVal = Math.max(...fitnessHistory.map(d => d.best), 0.001);
+
+      // Best line
+      chartCtx.beginPath();
+      chartCtx.strokeStyle = '#38bdf8'; // cyan
+      chartCtx.lineWidth = 1.5;
+      fitnessHistory.forEach((d, idx) => {
+        const x = (idx / (fitnessHistory.length - 1)) * w;
+        const y = h - (d.best / maxVal) * (h - 8) - 4;
+        if (idx === 0) chartCtx.moveTo(x, y);
+        else chartCtx.lineTo(x, y);
+      });
+      chartCtx.stroke();
+
+      // Avg line
+      chartCtx.beginPath();
+      chartCtx.strokeStyle = 'rgba(129, 140, 248, 0.5)'; // indigo
+      chartCtx.lineWidth = 1;
+      fitnessHistory.forEach((d, idx) => {
+        const x = (idx / (fitnessHistory.length - 1)) * w;
+        const y = h - (d.avg / maxVal) * (h - 8) - 4;
+        if (idx === 0) chartCtx.moveTo(x, y);
+        else chartCtx.lineTo(x, y);
+      });
+      chartCtx.stroke();
+    }
+
+    function updateMetrics(best, avg, successRate, popCount) {
+      document.getElementById('statBestFit').innerText = best > 100 ? best.toFixed(0) : best.toFixed(2);
+      document.getElementById('statAvgFit').innerText = avg > 100 ? avg.toFixed(0) : avg.toFixed(2);
+      document.getElementById('statSuccessRate').innerText = `${Math.round(successRate)}%`;
+      document.getElementById('statPopCount').innerText = popCount;
+    }
+
+    // Obstacle Dragging in Rockets simulation
+    let isDragging = false;
+    canvas.addEventListener('mousedown', (e) => {
+      if (currentMode !== 'rockets') return;
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const obs = rocketSimulation.obstacle;
+
+      if (mouseX >= obs.x && mouseX <= obs.x + obs.w && mouseY >= obs.y && mouseY <= obs.y + obs.h) {
+        isDragging = true;
+        rocketSimulation.isDraggingObstacle = true;
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging || currentMode !== 'rockets') return;
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      rocketSimulation.obstacle.x = mouseX - rocketSimulation.obstacle.w / 2;
+      rocketSimulation.obstacle.y = mouseY - rocketSimulation.obstacle.h / 2;
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+      if (rocketSimulation) rocketSimulation.isDraggingObstacle = false;
+    });
+
+    // Touch support for dragging obstacle
+    canvas.addEventListener('touchmove', (e) => {
+      if (currentMode !== 'rockets' || !e.touches[0]) return;
+      const rect = canvas.getBoundingClientRect();
+      const touchX = e.touches[0].clientX - rect.left;
+      const touchY = e.touches[0].clientY - rect.top;
+      rocketSimulation.obstacle.x = touchX - rocketSimulation.obstacle.w / 2;
+      rocketSimulation.obstacle.y = touchY - rocketSimulation.obstacle.h / 2;
+      e.preventDefault();
+    }, { passive: false });
+
+    // Slider Listeners
+    const sliderMutation = document.getElementById('sliderMutation');
+    sliderMutation.addEventListener('input', (e) => {
+      mutationRate = parseFloat(e.target.value) / 100;
+      document.getElementById('valMutation').innerText = `${e.target.value}%`;
+    });
+
+    const sliderPopSize = document.getElementById('sliderPopSize');
+    sliderPopSize.addEventListener('input', (e) => {
+      populationSize = parseInt(e.target.value, 10);
+      document.getElementById('valPopSize').innerText = populationSize;
+    });
+
+    const selectSelection = document.getElementById('selectSelection');
+    selectSelection.addEventListener('change', (e) => {
+      selectionMethod = e.target.value;
+    });
+
+    // Simulation Controls
+    function togglePause() {
+      isPaused = !isPaused;
+      document.getElementById('pauseIcon').className = isPaused ? 'fa-solid fa-play text-emerald-400' : 'fa-solid fa-pause text-cyan-400';
+      document.getElementById('pauseText').innerText = isPaused ? 'Resume' : 'Pause';
+    }
+
+    function setSpeed(spd) {
+      speedMultiplier = spd;
+      ['btnSpeed1', 'btnSpeed2', 'btnSpeed5'].forEach(id => {
+        document.getElementById(id).className = "px-2 py-1 rounded text-xs font-mono font-bold bg-slate-800 text-slate-400 hover:text-white";
+      });
+      document.getElementById(`btnSpeed${spd}`).className = "px-2 py-1 rounded text-xs font-mono font-bold bg-cyan-600 text-white";
+    }
+
+    function resetSimulation() {
+      if (currentMode === 'rockets') {
+        rocketSimulation = new RocketSimulation();
+      } else {
+        carSimulation = new CarSimulation();
+      }
+      fitnessHistory = [];
+      drawFitnessChart();
+    }
+
+    function forceNextGen() {
+      if (currentMode === 'rockets') {
+        rocketSimulation.evolve();
+      } else {
+        carSimulation.evolve();
+      }
+    }
+
+    function toggleExplainerModal(show) {
+      document.getElementById('explainerModal').classList.toggle('hidden', !show);
+    }
+
+    // Main Game / Animation Loop
+    function mainLoop() {
+      if (!isPaused) {
+        for (let i = 0; i < speedMultiplier; i++) {
+          if (currentMode === 'rockets') {
+            if (rocketSimulation) rocketSimulation.update();
+          } else {
+            if (carSimulation) carSimulation.update();
+          }
+        }
+      }
+
+      // Draw active simulation
+      if (currentMode === 'rockets' && rocketSimulation) {
+        rocketSimulation.draw();
+      } else if (currentMode === 'cars' && carSimulation) {
+        carSimulation.draw();
+      }
+
+      requestAnimationFrame(mainLoop);
+    }
+
+    // Initialize application on window load
+    window.onload = function() {
+      resizeCanvas();
+      initActiveSimulation();
+      requestAnimationFrame(mainLoop);
+    };
+  </script>
+</body>
+</html>
