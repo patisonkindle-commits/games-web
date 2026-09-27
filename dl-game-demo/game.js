@@ -1,6 +1,6 @@
 // ============================================================
 // Deep Learning in Games — Interactive HTML5 Demo
-// ตัวอย่างเชิงโต้ตอบสำหรับสอน Deep Learning ในบริบทของเกม
+// Interactive HTML5 Demo
 // ============================================================
 
 // --- Configuration ---
@@ -8,7 +8,7 @@ const CFG = {
   W: 1200,
   H: 720,
   scene: 0,
-  sceneNames: ['โครงสร้าง NN', 'AI ตัดสินใจ', 'เรียนรู้แบบ RL', 'Rule vs Deep Learning'],
+  sceneNames: ['NN Structure', 'AI Decision', 'RL Learning', 'Rule vs DL'],
   sceneColors: ['#00e5ff', '#76ff03', '#ff9100', '#ff4081'],
   tabH: 48,
   infoH: 90,
@@ -334,7 +334,7 @@ function drawInfoPanel() {
   fill(P.muted);
   textSize(11);
   textAlign(RIGHT, BOTTOM);
-  text('[1-4] เปลี่ยนฉาก  |  [Space] หยุด/เล่น  |  [R] Reset', CFG.W - 16, y + CFG.infoH - 10);
+  text('[1-4] Switch scene  |  [Space] Pause/Play  |  [R] Reset', CFG.W - 16, y + CFG.infoH - 10);
 }
 
 // ============================================================
@@ -472,7 +472,7 @@ class SceneMaze {
       }
     }
 
-    infoText = 'Scene 1: Maze Navigator — Agent ใช้ NN หาทางจากจุดเริ่มต้นไป Goal\nNN รับข้อมูลกำแพงรอบตัว แล้วตัดสินใจเลี้ยวซ้าย/ขวา/เดินตรง\nกด [Step] ทีละ tile เพื่อดู Forward Pass ทีละ step';
+    infoText = 'Scene 1: Maze Navigator — Agent uses NN to navigate from start to Goal\nNN receives wall sensor data, then decides: turn left/right/go straight\nPress [Step] to see Forward Pass one tile at a time';
   }
 
   generateMaze(w, h) {
@@ -762,7 +762,7 @@ class SceneMaze {
     drawNNVis(this.nn, nnCx, nnCy, w - 60, h - 120, -1, P.accent);
 
     // Input labels
-    const inputLabels = ['กำแพงหน้า', 'กำแพงซ้าย', 'กำแพงขวา', 'ทิศ Goal'];
+    const inputLabels = ['Wall Front', 'Wall Left', 'Wall Right', 'Goal Dir'];
     const positions = [];
     const nLayers = this.nn.sizes.length;
     const layerSpacing = (w - 60) / (nLayers - 1);
@@ -777,7 +777,7 @@ class SceneMaze {
     }
 
     // Output labels
-    const outputLabels = ['ตรง', 'ซ้าย', 'ขวา'];
+    const outputLabels = ['Straight', 'Left', 'Right'];
     textAlign(LEFT, CENTER);
     const lastLayerN = this.nn.sizes[nLayers - 1];
     const lastStartY = nnCy - (lastLayerN - 1) * Math.min(40, (h - 120) / (lastLayerN + 1)) / 2;
@@ -823,7 +823,7 @@ class SceneMaze {
     const btnH = 40;
     const gap = 16;
     const totalW = btnW * 3 + gap * 2;
-    const startX = CFG.gameW / 2 - totalW / 2;
+    const startX = 16;
 
     const btn1 = { x: startX, y, w: btnW, h: btnH, label: this.running ? '⏸ Stop' : '▶ Start', color: this.running ? P.accent2 : P.accent3 };
     drawBtn(btn1);
@@ -838,7 +838,7 @@ class SceneMaze {
     const spdBtnW = 48, spdGap = 8;
     const spdLabels = ['1x', '3x', '5x', 'MAX'];
     const totalSpdW = spdLabels.length * spdBtnW + (spdLabels.length - 1) * spdGap;
-    const spdX = CFG.gameW / 2 - totalSpdW / 2;
+    const spdX = CFG.gameW - 16 - totalSpdW;
     fill(P.textDim);
     textSize(12);
     textStyle(BOLD);
@@ -876,7 +876,7 @@ class SceneMaze {
     if (this.speedBtns) {
       const spdBtnW = 48, spdGap = 8;
       const totalSpdW = this.speedBtns.length * spdBtnW + (this.speedBtns.length - 1) * spdGap;
-      const spdX = CFG.gameW / 2 - totalSpdW / 2;
+      const spdX = CFG.gameW - 16 - totalSpdW;
       const areaH2 = CFG.H - CFG.tabH - CFG.infoH;
       const y2 = areaH2 - 50;
       for (let i = 0; i < this.speedBtns.length; i++) {
@@ -929,7 +929,7 @@ class ScenePlatformer {
       this.spawnCoin(500 + i * 250 + Math.random() * 150);
     }
 
-    infoText = 'Scene 2: Platformer Runner — Agent ใช้ NN ตัดสินใจกระโดดหลบสิ่งกีดขวาง\nNN รับข้อมูลระยะและระดับของ obstacles/coins แล้วตัดสินใจ [กระโดด] หรือ [ไม่กระโดด]';
+    infoText = 'Scene 2: Platformer Runner — Agent uses NN to decide when to jump over obstacles\nNN receives distance and level of obstacles/coins, then decides [Jump] or [Stay]';
   }
 
   spawnObstacle(x) {
@@ -1258,7 +1258,7 @@ class ScenePlatformer {
       text(inputLabels[i], w / 2 - (w - 60) / 2 - 8, sY + i * nSp0);
     }
 
-    const outLabels = ['กระโดด', 'ไม่กระโดด'];
+    const outLabels = ['Jump', 'Stay'];
     const nSL = this.nn.sizes[nL - 1];
     const nSpL = Math.min(40, (h - 140) / (nSL + 1));
     const sYL = h / 2 - 20 - (nSL - 1) * nSpL / 2;
@@ -1287,7 +1287,7 @@ class ScenePlatformer {
     const btnH = 40;
     const gap = 16;
     const totalW = btnW * 2 + gap;
-    const startX = CFG.gameW / 2 - totalW / 2;
+    const startX = 16;
 
     const btn1 = { x: startX, y, w: btnW, h: btnH, label: this.running ? '⏸ Stop' : '▶ Start', color: this.running ? P.accent2 : P.accent3 };
     drawBtn(btn1);
@@ -1299,7 +1299,7 @@ class ScenePlatformer {
     const spdBtnW = 48, spdGap = 8;
     const spdLabels = ['1x', '3x', '5x', 'MAX'];
     const totalSpdW = spdLabels.length * spdBtnW + (spdLabels.length - 1) * spdGap;
-    const spdX = CFG.gameW / 2 - totalSpdW / 2;
+    const spdX = CFG.gameW - 16 - totalSpdW;
     fill(P.textDim);
     textSize(12);
     textStyle(BOLD);
@@ -1344,7 +1344,7 @@ class ScenePlatformer {
     if (this.speedBtns) {
       const spdBtnW2 = 48, spdGap2 = 8;
       const totalSpdW2 = this.speedBtns.length * spdBtnW2 + (this.speedBtns.length - 1) * spdGap2;
-      const spdX2 = CFG.gameW / 2 - totalSpdW2 / 2;
+      const spdX2 = CFG.gameW - 16 - totalSpdW2;
       const areaH2 = CFG.H - CFG.tabH - CFG.infoH;
       const y2 = areaH2 - 50;
       for (let i = 0; i < this.speedBtns.length; i++) {
@@ -1421,7 +1421,7 @@ class SceneRacing {
     // Init car position
     this.resetCar();
 
-    infoText = 'Scene 3: Racing Car — RL Learning\nAI เรียนรู้ขับรถรอบสนามแบบ Reinforcement Learning: ลองผิด → ได้ reward → ปรับ weight\nกด [▶ เริ่มเรียนรู้] แล้วดู reward curve ค่อยๆ สูงขึ้น | [Space] หยุด | [R] Reset';
+    infoText = 'Scene 3: Racing Car — RL Learning\nAI learns to drive around the track via Reinforcement Learning: try → get reward → adjust weights\nPress [▶ Learn] and watch the reward curve gradually improve | [Space] Stop | [R] Reset';
   }
 
   resetCar() {
@@ -1756,7 +1756,7 @@ class SceneRacing {
     }
 
     // Action labels
-    const aLabels = ['ตรง', 'ขวาเบา', 'ขวาแรง', 'ซ้ายเบา', 'ซ้ายแรง'];
+    const aLabels = ['Straight', 'Slight R', 'Hard R', 'Slight L', 'Hard L'];
     textAlign(LEFT, CENTER);
     const nSL = this.nn.sizes[this.nn.sizes.length - 1];
     const nSpL = Math.min(30, (h * 0.35) / 6);
@@ -1827,7 +1827,7 @@ class SceneRacing {
       fill(P.textDim);
       textSize(11);
       textAlign(CENTER, CENTER);
-      text('กด "เริ่มเรียนรู้" เพื่อเริ่ม RL training', w / 2, graphY + graphH / 2);
+      text('Press "Learn" to start RL training', w / 2, graphY + graphH / 2);
     }
 
     pop();
@@ -1840,10 +1840,10 @@ class SceneRacing {
     const btnH = 40;
     const gap = 16;
     const totalW = btnW * 2 + gap;
-    const startX = CFG.gameW / 2 - totalW / 2;
+    const startX = 16;
 
     const btn1 = { x: startX, y, w: btnW, h: btnH,
-      label: this.running ? '⏸ หยุด' : '▶ เริ่มเรียนรู้',
+      label: this.running ? '⏸ Stop' : '▶ Learn',
       color: this.running ? P.accent2 : P.accent3 };
     drawBtn(btn1);
 
@@ -1857,7 +1857,7 @@ class SceneRacing {
     const spdBtnW = 48;
     const spdGap = 8;
     const totalSpdW = speeds.length * spdBtnW + (speeds.length - 1) * spdGap;
-    const spdX = CFG.gameW / 2 - totalSpdW / 2;
+    const spdX = CFG.gameW - 16 - totalSpdW;
 
     fill(P.textDim);
     textSize(12);
@@ -1907,7 +1907,7 @@ class SceneRacing {
       const areaH2 = CFG.H - CFG.tabH - CFG.infoH;
       const spdBtnW = 48, spdGap = 8;
       const totalSpdW = this.speedBtns.length * spdBtnW + (this.speedBtns.length - 1) * spdGap;
-      const spdX = CFG.gameW / 2 - totalSpdW / 2;
+      const spdX = CFG.gameW - 16 - totalSpdW;
       const y2 = areaH2 - 50;
       for (let i = 0; i < this.speedBtns.length; i++) {
         const bx = spdX + i * (spdBtnW + spdGap);
@@ -1956,7 +1956,7 @@ class SceneCompare {
     this.initObstacles(this.ai);
     this.alive = true;
 
-    infoText = 'Scene 4: Rule-based vs Deep Learning — เปรียบเทียบ AI 2 แบบ\nซ้าย: Rule-based (hardcoded rules) vs ขวา: Deep Learning (NN learned)\nกด [▶ Start] เพื่อเปรียบเทียบ — ดูว่า Rule แบบไหนที่ Rule-based จัดการไม่ได้';
+    infoText = 'Scene 4: Rule-based vs Deep Learning — Compare 2 AI approaches\nLeft: Rule-based (hardcoded rules) vs Right: Deep Learning (NN learned)\nPress [▶ Start] to compare — see which scenarios Rule-based can\'t handle';
   }
 
   initObstacles(agent) {
@@ -2379,22 +2379,22 @@ class SceneCompare {
     fill(P.spike);
     rect(w - 130, legY, 10, 10, 2);
     fill(P.textDim);
-    text('= สูง (ต้องเปลี่ยนเลน)', w - 115, legY);
+    text('= Tall (must switch lane)', w - 115, legY);
 
     fill('#ff1744');
     rect(w - 130, legY + 15, 10, 10, 2);
     fill(P.textDim);
-    text('= Double (ทั้ง 2 เลน)', w - 115, legY + 15);
+    text('= Double (both lanes)', w - 115, legY + 15);
 
     fill('#4caf50');
     rect(w - 130, legY + 30, 10, 10, 2);
     fill(P.textDim);
-    text('= Low (ผ่านได้)', w - 115, legY + 30);
+    text('= Low (passable)', w - 115, legY + 30);
 
     fill('#ff9100');
     rect(w - 130, legY + 45, 10, 10, 2);
     fill(P.textDim);
-    text('= Pattern (คดเคี้ยว)', w - 115, legY + 45);
+    text('= Pattern (zigzag)', w - 115, legY + 45);
 
     pop();
   }
@@ -2406,10 +2406,10 @@ class SceneCompare {
     const btnH = 40;
     const gap = 16;
     const totalW = btnW * 2 + gap;
-    const startX = CFG.W / 2 - totalW / 2;
+    const startX = 16;
 
     const btn1 = { x: startX, y, w: btnW, h: btnH,
-      label: this.running ? '⏸ หยุด' : '▶ Start',
+      label: this.running ? '⏸ Stop' : '▶ Start',
       color: this.running ? P.accent2 : P.accent3 };
     drawBtn(btn1);
 
@@ -2421,7 +2421,7 @@ class SceneCompare {
     const spdBtnW = 48, spdGap = 8;
     const spdLabels = ['1x', '3x', '5x', 'MAX'];
     const totalSpdW = spdLabels.length * spdBtnW + (spdLabels.length - 1) * spdGap;
-    const spdX = CFG.W / 2 - totalSpdW / 2;
+    const spdX = CFG.W - 16 - totalSpdW;
     fill(P.textDim);
     textSize(12);
     textStyle(BOLD);
@@ -2466,7 +2466,7 @@ class SceneCompare {
     if (this.speedBtns) {
       const spdBtnW = 48, spdGap = 8;
       const totalSpdW = this.speedBtns.length * spdBtnW + (this.speedBtns.length - 1) * spdGap;
-      const spdX = CFG.W / 2 - totalSpdW / 2;
+      const spdX = CFG.W - 16 - totalSpdW;
       const areaH2 = CFG.H - CFG.tabH - CFG.infoH;
       const y2 = areaH2 - 50;
       for (let i = 0; i < this.speedBtns.length; i++) {
