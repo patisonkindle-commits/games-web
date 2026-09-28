@@ -218,8 +218,24 @@ function keyPressed() {
     CFG.scene = parseInt(key) - 1;
     initScene(CFG.scene);
   }
-  if (CFG.scene === 2 && key === ' ') scene3.togglePause();
-  if (CFG.scene === 2 && (key === 'r' || key === 'R')) scene3.reset();
+  // Space = Pause/Play for all scenes
+  if (key === ' ') {
+    switch (CFG.scene) {
+      case 0: scene1.running = !scene1.running; scene1.stepMode = false; break;
+      case 1: scene2.running = !scene2.running; break;
+      case 2: scene3.togglePause(); break;
+      case 3: scene4.running = !scene4.running; break;
+    }
+  }
+  // R = Reset for all scenes
+  if (key === 'r' || key === 'R') {
+    switch (CFG.scene) {
+      case 0: scene1.reset(); break;
+      case 1: scene2.reset(); break;
+      case 2: scene3.reset(); break;
+      case 3: scene4.reset(); break;
+    }
+  }
 }
 
 function keyReleased() {
@@ -867,7 +883,7 @@ class SceneMaze {
     for (let i = 0; i < this.btns.length; i++) {
       const b = this.btns[i];
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
-        if (i === 0) this.running = !this.running;
+        if (i === 0) { this.running = !this.running; this.stepMode = false; }
         if (i === 1) { this.stepMode = true; this.doStep(); this.running = false; }
         if (i === 2) this.reset();
       }
@@ -959,7 +975,7 @@ class ScenePlatformer {
     let minCoinDist = 1, minCoinHigh = 0;
 
     for (const o of this.obstacles) {
-      const dist = (o.x - this.agentX) / lookAhead;
+      const dist = (o.x - this.scrollX - this.agentX) / lookAhead;
       if (dist > -0.1 && dist < minObsDist) {
         minObsDist = Math.max(0, dist);
         minObsSameLevel = (Math.abs(o.y + o.h - this.groundY) < 15) ? 1 : 0;
@@ -968,7 +984,7 @@ class ScenePlatformer {
 
     for (const c of this.coins) {
       if (c.collected) continue;
-      const dist = (c.x - this.agentX) / lookAhead;
+      const dist = (c.x - this.scrollX - this.agentX) / lookAhead;
       if (dist > -0.1 && dist < minCoinDist) {
         minCoinDist = Math.max(0, dist);
         minCoinHigh = (c.y < this.groundY - 40) ? 1 : 0;
@@ -2334,41 +2350,41 @@ class SceneCompare {
       text('💀', agent.x + 12, 200);
     }
 
-    // Stats panel at bottom
+    // Stats panel at bottom (shifted up to avoid overlap with controls)
     fill(0, 0, 0, 100);
     noStroke();
-    rect(10, h - 70, w - 20, 60, 6);
+    rect(10, h - 110, w - 20, 55, 6);
 
     fill(agentColor);
     textSize(11);
     textStyle(BOLD);
     textAlign(LEFT, TOP);
-    text('SCORE', 20, h - 64);
+    text('SCORE', 20, h - 104);
     textStyle(NORMAL);
     fill(P.text);
     textSize(14);
     textStyle(BOLD);
-    text(`${agent.score}`, 20, h - 50);
+    text(`${agent.score}`, 20, h - 90);
 
     fill(agentColor);
     textSize(11);
     textStyle(BOLD);
-    text('DEATHS', 100, h - 64);
+    text('DEATHS', 100, h - 104);
     textStyle(NORMAL);
     fill(P.text);
     textSize(14);
     textStyle(BOLD);
-    text(`${agent.deaths}`, 100, h - 50);
+    text(`${agent.deaths}`, 100, h - 90);
 
     fill(agentColor);
     textSize(11);
     textStyle(BOLD);
-    text('SURVIVAL', 180, h - 64);
+    text('SURVIVAL', 180, h - 104);
     textStyle(NORMAL);
     fill(P.text);
     textSize(14);
     textStyle(BOLD);
-    text(`${(agent.survivalTime / 60).toFixed(1)}s`, 180, h - 50);
+    text(`${(agent.survivalTime / 60).toFixed(1)}s`, 180, h - 90);
     textStyle(NORMAL);
 
     // Legend
